@@ -1,0 +1,39 @@
+{
+  "name": "Minería San Juan — Estado de Proyectos",
+  "short_name": "Minería SJ",
+  "description": "Estado actualizado de los proyectos mineros de la provincia de San Juan, Argentina: mapa interactivo, fichas de química de minerales y noticias. Proyecto educativo 2026.",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["education", "news"],
+  "background_color": "#f5f7fa",
+  "theme_color": "#1a3a5c",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     Proyecto educativo - Concurso Mineralogía San Juan - 2026
+     Aplicación web de una sola página (SPA) en un único archivo.
+     Tecnologías: HTML5 + Tailwind CSS (CDN) + Leaflet.js (mapas)
+     + JavaScript puro (Vanilla JS, sin frameworks).
+     PWA: instalable como app (manifest.webmanifest + sw.js).
+     Autor: Estudiantes - Concurso de Mineralogía y Química de
+     Minerales, San Juan, Argentina.
+     ============================================================ -->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport-fit=cover permite que la app use toda la pantalla en celulares -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- theme-color: la barra del navegador en Android toma este color azul -->
+  <meta name="theme-color" content="#1a3a5c">
+  <title>Minería San Juan - Estado de Proyectos</title>
+
+  <!-- ===== INSTALACIÓN COMO APP (PWA) ===== -->
+  <!-- Estas etiquetas permiten que el celular la instale como app:
+       con ícono propio en la pantalla de inicio y a pantalla completa -->
+  <meta name="description" content="Estado actualizado de los proyectos mineros de la provincia de San Juan, Argentina: mapa interactivo, fichas de química de minerales y noticias. Proyecto educativo 2026.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Minería SJ">
+  <!-- Manifiesto: nombre, íconos y colores oficiales de la app -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Íconos para la pestaña del navegador y la pantalla de inicio -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+
+  <!-- ===== LIBRERÍAS EXTERNAS (CDN) ===== -->
+  <!-- Tailwind CSS: framework de estilos por clases utilitarias -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet: librería de mapas interactivos de código abierto -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- FontAwesome: iconos adicionales -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- ============================================================
+       ESTILOS PROPIOS DE LA APLICACIÓN
+       Aquí definimos la paleta de colores, las transiciones entre
+       vistas, el panel deslizante (bottom sheet), el menú lateral
+       (drawer) y los detalles visuales que Tailwind no cubre.
+       ============================================================ -->
+  <style>
+    /* Variables de color de toda la aplicación */
+    :root {
+      --primario: #1a3a5c;       /* Azul oscuro del header */
+      --produccion: #4CAF50;     /* Verde: en producción */
+      --reactivacion: #9C27B0;   /* Púrpura: reactivación */
+      --evaluacion: #FF9800;     /* Naranja: evaluación avanzada */
+      --exploracion: #2196F3;    /* Azul: exploración */
+      --suspendido: #9E9E9E;     /* Gris: suspendido */
+      --fondo: #f5f7fa;
+      --texto: #2c3e50;
+      --texto-sec: #7f8c8d;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      overflow-x: hidden; /* nunca debe haber scroll horizontal */
+    }
+
+    /* ===== TRANSICIÓN ENTRE VISTAS (fade de 0.3s) ===== */
+    .vista { display: none; opacity: 0; transition: opacity 0.3s ease; }
+    .vista.activa { display: block; }
+    .vista.visible { opacity: 1; }
+
+    /* ===== TARJETAS ===== */
+    .tarjeta {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    /* En computadoras, al pasar el mouse la tarjeta se eleva */
+    @media (hover: hover) {
+      .tarjeta.interactiva:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        cursor: pointer;
+      }
+    }
+
+    /* ===== ETIQUETA (BADGE) DE ESTADO ===== */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    /* ===== CHIPS DE FILTRO (vista Proyectos) ===== */
+    .chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      background: #fff;
+      color: var(--texto-sec);
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .chip.activo { background: var(--primario); color: #fff; border-color: var(--primario); }
+
+    /* Barra de chips con scroll horizontal sin barra visible */
+    .fila-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .fila-chips::-webkit-scrollbar { display: none; }
+
+    /* ===== MENÚ LATERAL (DRAWER) ===== */
+    #drawer {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 280px; max-width: 80vw;
+      background: #fff; z-index: 70;
+      transform: translateX(-105%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    #drawer.abierto { transform: translateX(0); }
+
+    /* ===== PANEL INFERIOR DE DETALLE (BOTTOM SHEET) ===== */
+    #hoja-detalle {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: 80%;
+      background: #fff; z-index: 60;
+      border-radius: 20px 20px 0 0;
+      transform: translateY(105%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+      display: flex; flex-direction: column;
+    }
+    #hoja-detalle.abierta { transform: translateY(0); }
+
+    /* Fondo oscuro semitransparente detrás del drawer y del panel */
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      z-index: 50; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #overlay.visible { opacity: 1; pointer-events: auto; }
+
+    /* ===== ACORDEÓN DE QUÍMICA DE MINERALES ===== */
+    .acordeon { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+
+    /* ===== MENSAJE CUANDO EL MAPA NO CARGA (SIN INTERNET) ===== */
+    .aviso-offline {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; padding: 24px; text-align: center;
+      color: var(--texto-sec); background: #e8edf2; border-radius: 12px;
+      font-size: 14px; gap: 8px;
+    }
+
+    /* ===== NOTIFICACIÓN FLOTANTE (TOAST) ===== */
+    #toast {
+      position: fixed; top: 72px; left: 50%; transform: translateX(-50%) translateY(-8px);
+      background: var(--primario); color: #fff;
+      padding: 10px 18px; border-radius: 8px; font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 80;
+      max-width: 90vw; text-align: center;
+    }
+    #toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Botones flotantes sobre el mapa (leyenda y brújula) deben quedar
+       por encima de las capas de Leaflet (que usan z-index hasta ~700) */
+    .sobre-mapa { z-index: 1000; }
+
+    /* Popups de Leaflet con la tipografía de la app */
+    .leaflet-popup-content { font-family: 'Inter', system-ui, sans-serif; margin: 12px 14px; }
+    .btn-popup {
+      display: block; width: 100%; margin-top: 8px;
+      background: var(--primario); color: #fff;
+      border: none; border-radius: 8px; padding: 6px 10px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+
+<body class="pb-24">
+
+  <!-- ============================================================
+       HEADER FIJO SUPERIOR
+       Contiene: botón de menú (hamburguesa), título de la app y
+       campana de notificaciones. Siempre visible arriba.
+       ============================================================ -->
+  <header class="fixed top-0 left-0 right-0 z-40 shadow-md" style="background: var(--primario);">
+    <div class="max-w-2xl mx-auto flex items-center justify-between px-4 h-[60px]">
+      <!-- Botón hamburguesa: abre el menú lateral -->
+      <button onclick="abrirDrawer()" aria-label="Abrir menú" class="p-2 -ml-2 text-white">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
+      </button>
+      <!-- Título y subtítulo -->
+      <div class="text-center text-white">
+        <h1 class="text-base font-bold leading-tight">Minería San Juan</h1>
+        <p class="text-[11px] opacity-80 leading-tight">Estado de Proyectos</p>
+      </div>
+      <!-- Campana de notificaciones -->
+      <button onclick="mostrarToast('No hay notificaciones nuevas')" aria-label="Notificaciones" class="p-2 -mr-2 text-white">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MENÚ LATERAL (DRAWER)
+       Se desliza desde la izquierda con enlaces a las 5 vistas.
+       ============================================================ -->
+  <nav id="drawer" aria-label="Menú principal">
+    <div class="p-6 text-white" style="background: var(--primario);">
+      <div class="flex items-center gap-3">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+          <path d="M3 20l6-11 4 7 3-5 5 9z"/>
+        </svg>
+        <div>
+          <p class="font-bold">Minería San Juan</p>
+          <p class="text-xs opacity-80">Proyecto educativo 2026</p>
+        </div>
+      </div>
+    </div>
+    <div class="p-3">
+      <button onclick="cambiarVista('inicio')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-house w-5 text-center" style="color:var(--primario)"></i> Inicio</button>
+      <button onclick="cambiarVista('proyectos')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-list w-5 text-center" style="color:var(--primario)"></i> Proyectos</button>
+      <button onclick="cambiarVista('mapa')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-map w-5 text-center" style="color:var(--primario)"></i> Mapa</button>
+      <button onclick="cambiarVista('noticias')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-regular fa-newspaper w-5 text-center" style="color:var(--primario)"></i> Noticias</button>
+      <button onclick="cambiarVista('acerca')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-circle-info w-5 text-center" style="color:var(--primario)"></i> Acerca de</button>
+    </div>
+    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.0 · julio 2026</p>
+  </nav>
+
+  <!-- Fondo oscuro compartido por drawer y panel de detalle -->
+  <div id="overlay" onclick="cerrarTodo()"></div>
+
+  <!-- Notificación flotante -->
+  <div id="toast"></div>
+
+  <!-- ============================================================
+       CONTENIDO PRINCIPAL: LAS 5 VISTAS
+       Solo una vista es visible a la vez; el cambio se hace con
+       JavaScript aplicando un fundido (fade) de 0.3 segundos.
+       ============================================================ -->
+  <main class="pt-[60px]">
+
+    <!-- ══════════════ VISTA 1: INICIO ══════════════ -->
+    <section id="vista-inicio" class="vista">
+      <div class="max-w-2xl mx-auto p-4 md:p-6 space-y-5">
+
+        <!-- Banner con imagen de montañas y texto de bienvenida -->
+        <div class="relative rounded-xl overflow-hidden h-40 tarjeta">
+          <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop"
+               alt="Cordillera de los Andes" class="absolute inset-0 w-full h-full object-cover"
+               onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg,#1a3a5c,#2c5f8a)';">
+          <div class="absolute inset-0" style="background: rgba(16,32,52,0.55);"></div>
+          <div class="relative h-full flex items-center p-5">
+            <p class="text-white font-semibold text-base leading-snug drop-shadow">
+              Conocé el estado actual de los proyectos mineros en la provincia de San Juan
+            </p>
+          </div>
+        </div>
+
+        <!-- Fecha de última actualización de los datos -->
+        <div class="flex items-center gap-2 text-xs" style="color: var(--texto-sec);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>
+          </svg>
+          Actualizado: julio 2026
+        </div>
+
+        <!-- Tarjetas de estadísticas generales (4 indicadores) -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e8edf2; color:var(--primario)">
+              <!-- Icono pico de mina -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M14 10 4 20"/><path d="M6.5 8.5C9 6 13 4.5 17 5.5 16 9.5 14.5 13.5 12 16"/><path d="M12 6l6 6"/>
+              </svg>
+            </span>
+            <div><p class="text-2xl font-bold leading-none">14</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Total proyectos</p></div>
+          </div>
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e6f4e7; color:var(--produccion)">
+              <!-- Icono check -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12l5 5L20 6"/>
+              </svg>
+            </span>
+            <div><p class="text-2xl font-bold leading-none">2</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En producción</p></div>
+          </div>
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#fff3e0; color:var(--evaluacion)">
+              <!-- Icono engranaje -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="3.2"/>
+                <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>
+              </svg>
+            </span>
+            <div><p class="text-2xl font-bold leading-none">4</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Evaluación avanzada</p></div>
+          </div>
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e3f2fd; color:var(--exploracion)">
+              <!-- Icono lupa -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="10.5" cy="10.5" r="6"/><line x1="15" y1="15" x2="20.5" y2="20.5"/>
+              </svg>
+            </span>
+            <div><p class="text-2xl font-bold leading-none">5</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En exploración</p></div>
+          </div>
+        </div>
+
+        <!-- Mapa en miniatura con todos los proyectos -->
+        <div>
+          <h2 class="font-bold text-base mb-2">Proyectos en el mapa</h2>
+          <div class="tarjeta overflow-hidden">
+            <div id="mapa-mini" class="contenedor-mapa w-full" style="height: 250px;"></div>
+          </div>
+          <button onclick="cambiarVista('mapa')" class="mt-3 w-full text-white font-semibold text-sm py-3 rounded-lg" style="background: var(--primario);">
+            Ver mapa completo →
+          </button>
+        </div>
+
+        <!-- Proyectos destacados (4 tarjetas horizontales) -->
+        <div>
+          <h2 class="font-bold text-base mb-2">Proyectos destacados</h2>
+          <div id="lista-destacados" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════ VISTA 2: PROYECTOS (LISTA COMPLETA) ══════════════ -->
+    <section id="vista-proyectos" class="vista">
+      <div class="max-w-2xl mx-auto p-4 md:p-6">
+        <h2 class="font-bold text-xl mb-3">Proyectos mineros</h2>
+
+        <!-- Filtros por estado (chips deslizables horizontalmente) -->
+        <div class="fila-chips mb-4" id="fila-filtros"></div>
+
+        <!-- Lista de tarjetas de proyectos (se genera con JavaScript) -->
+        <div id="lista-proyectos" class="space-y-3" style="transition: opacity 0.2s ease;"></div>
+      </div>
+    </section>
+
+    <!-- ══════════════ VISTA 3: MAPA COMPLETO ══════════════ -->
+    <section id="vista-mapa" class="vista">
+      <div class="relative">
+        <!-- El mapa ocupa casi toda la pantalla (descontando header y barra inferior) -->
+        <div id="mapa-full" class="contenedor-mapa w-full" style="height: calc(100vh - 124px);"></div>
+
+        <!-- Leyenda flotante con los colores de cada estado -->
+        <div class="absolute bottom-4 left-4 sobre-mapa bg-white/95 rounded-xl p-3 shadow-lg text-[11px] space-y-1.5" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <p class="font-bold text-xs mb-1">Estados</p>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-white shadow" style="background:var(--produccion)"></span> En producción</div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-white shadow" style="background:var(--reactivacion)"></span> Reactivación</div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-white shadow" style="background:var(--evaluacion)"></span> Evaluación avanzada</div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-white shadow" style="background:var(--exploracion)"></span> En exploración</div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-white shadow" style="background:var(--suspendido)"></span> Suspendido</div>
+        </div>
+
+        <!-- Botón flotante de brújula: centra el mapa en la ubicación del usuario -->
+        <button onclick="ubicarUsuario()" aria-label="Mi ubicación"
+                class="absolute bottom-4 right-4 sobre-mapa w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center"
+                style="color: var(--primario); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polygon points="15.5,8.5 13.5,13.5 8.5,15.5 10.5,10.5" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ══════════════ VISTA 4: NOTICIAS ══════════════ -->
+    <section id="vista-noticias" class="vista">
+      <div class="max-w-2xl mx-auto p-4 md:p-6">
+        <h2 class="font-bold text-xl mb-4">Noticias</h2>
+        <div class="space-y-4">
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop" alt="Cordillera nevada"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>30/04/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">San Juan consolida liderazgo minero con USD 33.000 millones en inversiones</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Ocho proyectos estratégicos de cobre y oro posicionan a la provincia como el principal polo de inversión minera de Argentina para la próxima década.</p>
+            </div>
+          </article>
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&auto=format&fit=crop" alt="Montañas al amanecer"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>15/06/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">Los Azules confirma factibilidad: inicio de extracción proyectado para 2029</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">El megayacimiento de cobre de McEwen Copper avanza tras la publicación de su estudio de factibilidad y su aprobación en el régimen RIGI.</p>
+            </div>
+          </article>
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop" alt="Montañas con niebla"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>10/05/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">Casposo reanuda operaciones tras seis años de inactividad</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">La mina de plata y oro de Calingasta vuelve a producir con reservas confirmadas para tres años y nuevas campañas de exploración en marcha.</p>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════ VISTA 5: ACERCA DE ══════════════ -->
+    <section id="vista-acerca" class="vista">
+      <div class="max-w-2xl mx-auto p-4 md:p-6 space-y-4">
+        <h2 class="font-bold text-xl">Sobre este proyecto</h2>
+
+        <div class="tarjeta p-4 space-y-3 text-sm leading-relaxed">
+          <p>Esta aplicación fue desarrollada como proyecto educativo para el concurso de mineralogía y química de minerales. Su objetivo es brindar información transparente y actualizada sobre el estado de los proyectos mineros en la provincia de San Juan, Argentina.</p>
+          <p>La minería representa el 85,5% de las exportaciones provinciales y posiciona a San Juan como el segundo productor de oro del país. Los datos presentados provienen de fuentes oficiales y periodísticas especializadas del año 2026.</p>
+          <p>La sección de química de minerales busca conectar la geología con la química inorgánica, mostrando fórmulas, grupos cristalinos y propiedades físicas de los minerales asociados a cada yacimiento.</p>
+        </div>
+
+        <!-- Datos clave de la provincia -->
+        <div class="tarjeta p-4">
+          <h3 class="font-bold text-sm mb-3">San Juan minero en números</h3>
+          <ul class="text-xs space-y-2" style="color:var(--texto-sec)">
+            <li class="flex gap-2"><i class="fa-solid fa-sack-dollar mt-0.5" style="color:var(--primario)"></i> USD 33.000 millones de inversión proyectada en 8 proyectos estratégicos.</li>
+            <li class="flex gap-2"><i class="fa-solid fa-ship mt-0.5" style="color:var(--primario)"></i> Aporta el 28,9% de las exportaciones mineras nacionales.</li>
+            <li class="flex gap-2"><i class="fa-solid fa-chart-line mt-0.5" style="color:var(--primario)"></i> El 85,5% de las exportaciones provinciales provienen de la minería.</li>
+            <li class="flex gap-2"><i class="fa-solid fa-medal mt-0.5" style="color:var(--primario)"></i> 2° productor de oro del país, después de Santa Cruz.</li>
+          </ul>
+        </div>
+
+        <!-- Sección Equipo: integrantes del grupo -->
+        <div class="tarjeta p-4">
+          <h3 class="font-bold text-sm mb-3">Equipo</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background:var(--primario)">CM</span>
+              <span style="color:var(--texto)">Carlos Martín</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background:var(--primario)">AJ</span>
+              <span style="color:var(--texto)">Alex Jehan</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background:var(--primario)">BO</span>
+              <span style="color:var(--texto)">Benjamín Olivera</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background:var(--primario)">VN</span>
+              <span style="color:var(--texto)">Valentino Navarro</span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs" style="background:var(--primario)">ZP</span>
+              <span style="color:var(--texto)">Zaira Pereyra</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.0 - julio 2026</p>
+        <p class="text-center text-[11px] leading-relaxed px-2 pb-4" style="color:var(--texto-sec)">
+          Datos basados en información del Ministerio de Minería de San Juan, Diario de Cuyo, MDZ Online y reportes corporativos de las empresas mineras (2025-2026).
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       PANEL DE DETALLE DE PROYECTO (BOTTOM SHEET)
+       Se desliza desde abajo y ocupa el 80% de la pantalla.
+       Su contenido se genera con JavaScript según el proyecto.
+       ============================================================ -->
+  <div id="hoja-detalle" role="dialog" aria-label="Detalle del proyecto">
+    <!-- Barra superior con manija y botón de cierre -->
+    <div class="flex items-center justify-between px-5 pt-3 pb-1 shrink-0">
+      <span class="w-10 h-1.5 rounded-full bg-gray-300 absolute left-1/2 -translate-x-1/2 top-2"></span>
+      <span></span>
+      <button onclick="cerrarDetalle()" aria-label="Cerrar" class="p-2 -mr-2" style="color:var(--texto-sec)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Contenido desplazable del detalle -->
+    <div id="contenido-detalle" class="overflow-y-auto px-5 pb-8 grow max-w-2xl mx-auto w-full"></div>
+  </div>
+
+  <!-- ============================================================
+       BARRA DE NAVEGACIÓN INFERIOR (TAB BAR)
+       5 pestañas fijas abajo, como una app nativa de celular.
+       ============================================================ -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200" style="padding-bottom: env(safe-area-inset-bottom);">
+    <div class="max-w-2xl mx-auto grid grid-cols-5 h-16">
+      <button data-vista="inicio" onclick="cambiarVista('inicio')" class="tab flex flex-col items-center justify-center gap-1">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/>
+        </svg>
+        <span class="text-[10px] font-medium">Inicio</span>
+      </button>
+      <button data-vista="proyectos" onclick="cambiarVista('proyectos')" class="tab flex flex-col items-center justify-center gap-1">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/>
+          <circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="18" r="1" fill="currentColor"/>
+        </svg>
+        <span class="text-[10px] font-medium">Proyectos</span>
+      </button>
+      <button data-vista="mapa" onclick="cambiarVista('mapa')" class="tab flex flex-col items-center justify-center gap-1">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+          <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><line x1="9" y1="4" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="20"/>
+        </svg>
+        <span class="text-[10px] font-medium">Mapa</span>
+      </button>
+      <button data-vista="noticias" onclick="cambiarVista('noticias')" class="tab flex flex-col items-center justify-center gap-1">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5z"/><path d="M17 8h3v11a2 2 0 0 1-2 2"/>
+          <line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="13" x2="14" y2="13"/><line x1="7" y1="17" x2="11" y2="17"/>
+        </svg>
+        <span class="text-[10px] font-medium">Noticias</span>
+      </button>
+      <button data-vista="acerca" onclick="cambiarVista('acerca')" class="tab flex flex-col items-center justify-center gap-1">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/>
+        </svg>
+        <span class="text-[10px] font-medium">Acerca de</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       LÓGICA DE LA APLICACIÓN (JavaScript puro)
+       ============================================================ -->
+  <script>
+    /* ============================================================
+       1) DATOS: ESTADOS DE LOS PROYECTOS
+       Cada estado tiene un nombre visible y su color de la paleta.
+       ============================================================ */
+    const ESTADOS = {
+      produccion:   { nombre: 'En producción',       color: '#4CAF50' },
+      reactivacion: { nombre: 'Reactivación',        color: '#9C27B0' },
+      evaluacion:   { nombre: 'Evaluación avanzada', color: '#FF9800' },
+      exploracion:  { nombre: 'En exploración',      color: '#2196F3' },
+      suspendido:   { nombre: 'Suspendido',          color: '#9E9E9E' }
+    };
+
+    /* ============================================================
+       2) DATOS: LOS 14 PROYECTOS MINEROS DE SAN JUAN (2026)
+       Información real: nombre, departamento, minerales, operador,
+       coordenadas geográficas (latitud, longitud) y descripción.
+       ============================================================ */
+    const PROYECTOS = [
+      { id: 1, nombre: 'Veladero', ubicacion: 'Iglesia, cordillera', minerales: ['Oro', 'Plata'],
+        operador: 'Barrick Gold / Shandong Gold (Andina del Sol)', coords: [-29.3833, -69.9167], estado: 'produccion',
+        descripcion: 'Mayor yacimiento aurífero en producción de San Juan. Vida útil extendida hasta 2034. Planta de lixiviación en gran escala. Fases 7A y 7B en expansión. Ubicado a 4.000 msnm.' },
+
+      { id: 2, nombre: 'Gualcamayo', ubicacion: 'Jáchal, precordillera', minerales: ['Oro', 'Plata'],
+        operador: 'Mineros S.A. / ERIS LLC', coords: [-30.2500, -68.7500], estado: 'produccion',
+        descripcion: 'Yacimiento de oro y plata en explotación activa. Genera aproximadamente 450 empleos directos. Venta a ERIS LLC en 2023 aseguró la continuidad operativa a largo plazo.' },
+
+      { id: 3, nombre: 'Casposo', ubicacion: 'Calingasta, precordillera', minerales: ['Plata', 'Oro'],
+        operador: 'Austral Gold (Casposo Argentina)', coords: [-31.5000, -69.9000], estado: 'reactivacion',
+        descripcion: 'Reactivación anunciada en octubre 2025 tras años de inactividad. Reservas confirmadas para 3 años de producción inicial. Histórico de altas leyes: hasta 1.600 toneladas por día en 2011.' },
+
+      { id: 4, nombre: 'Hualilán', ubicacion: 'Ullum, precordillera central', minerales: ['Oro', 'Plata', 'Zinc'],
+        operador: 'Golden Mining (Challenger Gold)', coords: [-31.3000, -69.3500], estado: 'reactivacion',
+        descripcion: 'Depósito tipo skarn. Declaración de Impacto Ambiental (DIA) otorgada en noviembre 2024. Iniciando fase de preproducción. Recursos estimados: ~1,8 millones de onzas de oro equivalente.' },
+
+      { id: 5, nombre: 'Los Azules', ubicacion: 'Calingasta, Cordillera Frontal', minerales: ['Cobre', 'Oro', 'Plata'],
+        operador: 'McEwen Copper (Andes Corporation)', coords: [-31.8000, -70.2000], estado: 'evaluacion',
+        descripcion: 'Megayacimiento porfírico de cobre. Inversión estimada US$2.300-2.500 millones. DIA aprobada diciembre 2024. Aprobado en Régimen de Incentivos para Grandes Inversiones (RIGI). Estudio de factibilidad publicado octubre 2025. Inicio de extracción proyectado para 2029. Ubicado a 3.600 msnm y 124 km de Villa Calingasta.' },
+
+      { id: 6, nombre: 'Josemaría', ubicacion: 'Iglesia, Cordillera Frontal', minerales: ['Cobre', 'Oro', 'Plata'],
+        operador: 'Lundin Mining / Vicuña Corp', coords: [-29.5000, -70.1000], estado: 'evaluacion',
+        descripcion: 'Depósito porfírico a 4.295 msnm. Inversión estimada US$3.090 millones. 12,8 millones de toneladas de cobre medido. 32,2 millones de onzas de oro medido. 659 millones de onzas de plata medidas. Considerado entre los 10 mayores depósitos de cobre del mundo.' },
+
+      { id: 7, nombre: 'Altar', ubicacion: 'Calingasta', minerales: ['Cobre', 'Oro'],
+        operador: 'Aldebaran Resources', coords: [-31.7000, -70.1000], estado: 'evaluacion',
+        descripcion: 'Sistema pórfido de cobre-oro. Preparando solicitud para el Régimen de Incentivos para Grandes Inversiones (RIGI). Preliminary Economic Assessment (PEA) actualizada recientemente.' },
+
+      { id: 8, nombre: 'El Pachón', ubicacion: 'Calingasta / Iglesia', minerales: ['Cobre'],
+        operador: 'En proceso de definición', coords: [-31.9000, -70.3000], estado: 'evaluacion',
+        descripcion: 'En proceso de aprobación RIGI. Proyecto de clase mundial ubicado en el cinturón pórfido del Mioceno.' },
+
+      { id: 9, nombre: 'Taguas', ubicacion: 'Iglesia, Valle del Cura', minerales: ['Oro', 'Plata'],
+        operador: 'Orvana Minerals', coords: [-29.2000, -69.8000], estado: 'exploracion',
+        descripcion: 'Depósito epitermal de oro-plata. Preliminary Economic Assessment (PEA) 2021. Perforación intensiva planificada para los próximos años.' },
+
+      { id: 10, nombre: 'Río Cenicero', ubicacion: 'Calingasta, Cordillera Principal-Frontal', minerales: ['Cobre', 'Molibdeno', 'Oro', 'Plata'],
+        operador: 'Peregrine Metals / Aldebaran', coords: [-31.6000, -70.0000], estado: 'exploracion',
+        descripcion: 'Sistema pórfido de cobre-molibdeno con sobreimposición epitermal de oro-plata. Aproximadamente 13.000 metros perforados en 30 pozos.' },
+
+      { id: 11, nombre: 'Piuquenes', ubicacion: 'Calingasta / Iglesia, Cordillera Frontal', minerales: ['Cobre', 'Oro'],
+        operador: 'Pampa Metals', coords: [-31.6500, -70.0500], estado: 'exploracion',
+        descripcion: 'Perforaciones recientes intersectaron mineralización pórfida hasta 790 metros de profundidad.' },
+
+      { id: 12, nombre: 'La Ortiga', ubicacion: 'Iglesia, Cordillera Frontal', minerales: ['Oro', 'Plata', 'Cobre'],
+        operador: 'Minera del Carmen', coords: [-29.3000, -69.9000], estado: 'exploracion',
+        descripcion: 'Área de exploración de 7.500 hectáreas. 7.518 metros de sondajes ejecutados. Manifestaciones epitermales y pórfidos.' },
+
+      { id: 13, nombre: 'Santa Bárbara', ubicacion: 'Calingasta, Cordillera Frontal', minerales: ['Oro', 'Plata', 'Cobre', 'Bismuto'],
+        operador: 'Aurora Mining', coords: [-31.5500, -69.9500], estado: 'exploracion',
+        descripcion: 'Continuidad histórica de la mina San Francisco de los Andes. Presencia de brechas de turmalina-cuarzo. Exploración activa desde 2019.' },
+
+      { id: 14, nombre: 'Lama', ubicacion: 'Iglesia, Valle del Cura', minerales: ['Oro', 'Plata', 'Cobre'],
+        operador: 'Barrick Gold / Minera del Carmen', coords: [-29.3500, -69.9500], estado: 'suspendido',
+        descripcion: 'Parte argentina del extinto proyecto Pascua Lama. Proyecto suspendido internacionalmente por conflictos ambientales y judiciales.' }
+    ];
+
+    /* ============================================================
+       3) DATOS: QUÍMICA DE MINERALES
+       Fórmula química, sistema cristalino, dureza en la escala de
+       Mohs y un dato curioso de cada mineral.
+       Nota mineralógica: la bismutinita es el SULFURO de bismuto
+       (Bi₂S₃, ortorrómbico); la bismita es el ÓXIDO (Bi₂O₃),
+       mineral de alteración. Son especies distintas.
+       ============================================================ */
+    const QUIMICA = [
+      { nombre: 'Oro nativo',  formula: 'Au',            sistema: 'Cúbico',      dureza: '2.5-3',   dato: 'Metal noble, no se oxida en contacto con aire ni agua a temperatura ambiente' },
+      { nombre: 'Plata nativa', formula: 'Ag',           sistema: 'Cúbico',      dureza: '2.5-3',   dato: 'Mejor conductor de electricidad y calor de todos los metales conocidos' },
+      { nombre: 'Calcopirita', formula: 'CuFeS₂',        sistema: 'Tetragonal',  dureza: '3.5-4',   dato: "Conocida como 'el mineral del loco' por su brillo irisado metálico" },
+      { nombre: 'Pirita',      formula: 'FeS₂',          sistema: 'Cúbico',      dureza: '6-6.5',   dato: 'A veces confundida con oro (oro de los tontos), pero es sulfuro de hierro' },
+      { nombre: 'Esfalerita',  formula: 'ZnS',           sistema: 'Cúbico',      dureza: '3.5-4',   dato: 'Principal fuente de zinc a nivel mundial; en San Juan está presente en depósitos tipo skarn' },
+      { nombre: 'Malaquita',   formula: 'Cu₂CO₃(OH)₂',   sistema: 'Monoclínico', dureza: '3.5-4',   dato: 'Carbonato de cobre de color verde intenso, formado por alteración superficial' },
+      { nombre: 'Azurita',     formula: 'Cu₃(CO₃)₂(OH)₂', sistema: 'Monoclínico', dureza: '3.5-4',  dato: 'Carbonato de cobre de color azul profundo, asociado frecuentemente a malaquita' },
+      { nombre: 'Molibdenita', formula: 'MoS₂',          sistema: 'Hexagonal',   dureza: '1-1.5',   dato: 'Más resbaladizo que el grafito; usado como lubricante sólido de alta temperatura' },
+      { nombre: 'Bismutinita', formula: 'Bi₂S₃',         sistema: 'Ortorrómbico', dureza: '2-2.5',  dato: 'Sulfuro de bismuto, principal mineral de este metal' },
+      { nombre: 'Bismita',     formula: 'Bi₂O₃',         sistema: 'Monoclínico', dureza: '4.5',     dato: 'Óxido de bismuto, mineral de alteración' },
+      { nombre: 'Cuarzo',      formula: 'SiO₂',          sistema: 'Trigonal',    dureza: '7',       dato: 'Mineral más abundante en la corteza terrestre; componente esencial de las vetas hidrotermales' }
+    ];
+
+    /* Relación entre el metal extraído y los minerales que lo contienen.
+       Ejemplo: el cobre se encuentra en calcopirita, malaquita y azurita. */
+    const MAPA_MINERALES = {
+      'Oro':       ['Oro nativo'],
+      'Plata':     ['Plata nativa'],
+      'Cobre':     ['Calcopirita', 'Malaquita', 'Azurita'],
+      'Zinc':      ['Esfalerita'],
+      'Molibdeno': ['Molibdenita'],
+      'Bismuto':   ['Bismutinita', 'Bismita']
+    };
+
+    /* Devuelve la lista de fichas químicas asociadas a un proyecto.
+       Además de los minerales de mena, se agregan pirita y cuarzo,
+       minerales de ganga presentes en casi todos los yacimientos
+       hidrotermales de San Juan. */
+    function mineralesDelProyecto(p) {
+      const nombres = [];
+      p.minerales.forEach(function (metal) {
+        (MAPA_MINERALES[metal] || []).forEach(function (n) {
+          if (!nombres.includes(n)) nombres.push(n);
+        });
+      });
+      ['Pirita', 'Cuarzo'].forEach(function (n) {
+        if (!nombres.includes(n)) nombres.push(n);
+      });
+      return nombres.map(function (n) { return QUIMICA.find(function (q) { return q.nombre === n; }); });
+    }
+
+    /* ============================================================
+       4) NAVEGACIÓN ENTRE VISTAS
+       Cambia de pantalla con un fundido (fade) de 0.3 segundos y
+       actualiza el color de la pestaña activa en la barra inferior.
+       ============================================================ */
+    let vistaActual = null;
+
+    function cambiarVista(nombre) {
+      const nueva = document.getElementById('vista-' + nombre);
+      if (!nueva) return;
+      cerrarTodo(); // cierra drawer y panel de detalle si estaban abiertos
+
+      if (vistaActual === nombre) return;
+
+      const anterior = document.querySelector('.vista.activa');
+      const mostrar = function () {
+        // Se ocultan todas las demás vistas: así, aunque el usuario toque
+        // dos pestañas muy rápido, nunca quedan dos pantallas superpuestas
+        document.querySelectorAll('.vista').forEach(function (v) {
+          if (v !== nueva) v.classList.remove('activa', 'visible');
+        });
+        nueva.classList.add('activa');
+        // Doble requestAnimationFrame: garantiza que el navegador aplique
+        // primero display:block y recién después la opacidad (para animar)
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { nueva.classList.add('visible'); });
+        });
+        window.scrollTo(0, 0);
+        // Leaflet necesita recalcular su tamaño cuando el mapa se hace visible
+        if (nombre === 'mapa' && mapaCompleto) setTimeout(function () { mapaCompleto.invalidateSize(); }, 350);
+        if (nombre === 'inicio' && mapaMini) setTimeout(function () { mapaMini.invalidateSize(); }, 350);
+      };
+
+      if (anterior) {
+        anterior.classList.remove('visible');
+        setTimeout(function () { anterior.classList.remove('activa'); mostrar(); }, 300);
+      } else {
+        mostrar();
+      }
+
+      vistaActual = nombre;
+
+      // Actualiza la pestaña activa: azul oscuro la activa, gris las demás
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.style.color = (t.dataset.vista === nombre) ? 'var(--primario)' : 'var(--texto-sec)';
+      });
+    }
+
+    /* ============================================================
+       5) MENÚ LATERAL, OVERLAY Y NOTIFICACIONES
+       ============================================================ */
+    function abrirDrawer() {
+      document.getElementById('drawer').classList.add('abierto');
+      document.getElementById('overlay').classList.add('visible');
+    }
+    function cerrarTodo() {
+      document.getElementById('drawer').classList.remove('abierto');
+      document.getElementById('hoja-detalle').classList.remove('abierta');
+      document.getElementById('overlay').classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    let timerToast = null;
+    function mostrarToast(mensaje) {
+      const t = document.getElementById('toast');
+      t.textContent = mensaje;
+      t.classList.add('visible');
+      clearTimeout(timerToast);
+      timerToast = setTimeout(function () { t.classList.remove('visible'); }, 2500);
+    }
+
+    /* ============================================================
+       6) COMPONENTES REUTILIZABLES (HTML generado con JS)
+       ============================================================ */
+
+    // Etiqueta de color con el nombre del estado
+    function badgeHTML(estado) {
+      const e = ESTADOS[estado];
+      return '<span class="badge" style="background:' + e.color + '">' + e.nombre + '</span>';
+    }
+
+    // Chips grises con los minerales del proyecto
+    function chipsMineralesHTML(p) {
+      return p.minerales.map(function (m) {
+        return '<span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 font-medium" style="color:var(--texto)">' + m + '</span>';
+      }).join(' ');
+    }
+
+    // Tarjeta de la lista completa de proyectos (borde izquierdo de color)
+    function tarjetaProyectoHTML(p) {
+      const e = ESTADOS[p.estado];
+      return (
+        '<div class="tarjeta interactiva p-4" style="border-left: 4px solid ' + e.color + '" onclick="abrirDetalle(' + p.id + ')">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div>' +
+              '<p class="font-bold text-sm">' + p.nombre + '</p>' +
+              '<p class="text-xs mt-0.5" style="color:var(--texto-sec)"><i class="fa-solid fa-location-dot mr-1"></i>' + p.ubicacion + '</p>' +
+              '<p class="text-[11px] mt-0.5" style="color:var(--texto-sec)"><i class="fa-solid fa-building mr-1"></i>' + p.operador + '</p>' +
+            '</div>' +
+            badgeHTML(p.estado) +
+          '</div>' +
+          '<div class="flex flex-wrap gap-1.5 mt-2">' + chipsMineralesHTML(p) + '</div>' +
+        '</div>'
+      );
+    }
+
+    // Tarjeta horizontal para "Proyectos destacados" en el Inicio
+    function tarjetaDestacadaHTML(p) {
+      const e = ESTADOS[p.estado];
+      return (
+        '<div class="tarjeta interactiva p-3 flex items-center gap-3" onclick="abrirDetalle(' + p.id + ')">' +
+          '<span class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background:' + e.color + '1a; color:' + e.color + '">' +
+            '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20l6-11 4 7 3-5 5 9z"/></svg>' +
+          '</span>' +
+          '<div class="grow min-w-0">' +
+            '<p class="font-bold text-sm truncate">' + p.nombre + '</p>' +
+            '<p class="text-[11px] truncate" style="color:var(--texto-sec)">' + p.ubicacion + '</p>' +
+            '<div class="mt-1">' + badgeHTML(p.estado) + '</div>' +
+          '</div>' +
+          '<div class="text-right shrink-0">' +
+            '<p class="text-[10px] max-w-[90px] leading-tight" style="color:var(--texto-sec)">' + p.minerales.join(', ') + '</p>' +
+          '</div>' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" style="color:var(--texto-sec)"><path d="M9 6l6 6-6 6"/></svg>' +
+        '</div>'
+      );
+    }
+
+    /* ============================================================
+       7) VISTA PROYECTOS: FILTROS Y LISTA
+       ============================================================ */
+    const FILTROS = [
+      { clave: 'todos',        etiqueta: 'Todos' },
+      { clave: 'produccion',   etiqueta: 'En producción' },
+      { clave: 'reactivacion', etiqueta: 'Reactivación' },
+      { clave: 'evaluacion',   etiqueta: 'Evaluación avanzada' },
+      { clave: 'exploracion',  etiqueta: 'Exploración' },
+      { clave: 'suspendido',   etiqueta: 'Suspendido' }
+    ];
+    let filtroActivo = 'todos';
+
+    function renderFiltros() {
+      document.getElementById('fila-filtros').innerHTML = FILTROS.map(function (f) {
+        return '<button class="chip' + (f.clave === filtroActivo ? ' activo' : '') + '" onclick="aplicarFiltro(\'' + f.clave + '\')">' + f.etiqueta + '</button>';
+      }).join('');
+    }
+
+    function renderLista() {
+      const cont = document.getElementById('lista-proyectos');
+      const visibles = PROYECTOS.filter(function (p) { return filtroActivo === 'todos' || p.estado === filtroActivo; });
+      cont.innerHTML = visibles.map(tarjetaProyectoHTML).join('') ||
+        '<p class="text-center text-sm py-8" style="color:var(--texto-sec)">No hay proyectos en esta categoría.</p>';
+    }
+
+    // Al tocar un filtro: pequeño fundido de la lista para suavizar el cambio
+    function aplicarFiltro(clave) {
+      filtroActivo = clave;
+      renderFiltros();
+      const cont = document.getElementById('lista-proyectos');
+      cont.style.opacity = '0';
+      setTimeout(function () { renderLista(); cont.style.opacity = '1'; }, 200);
+    }
+
+    /* ============================================================
+       8) PANEL DE DETALLE (BOTTOM SHEET) Y QUÍMICA DE MINERALES
+       ============================================================ */
+    function abrirDetalle(id) {
+      const p = PROYECTOS.find(function (x) { return x.id === id; });
+      if (!p) return;
+      const e = ESTADOS[p.estado];
+
+      // Fichas de química: una tarjeta por mineral con fórmula,
+      // sistema cristalino, dureza Mohs y dato curioso
+      const fichas = mineralesDelProyecto(p).map(function (q) {
+        return (
+          '<div class="border border-gray-200 rounded-lg p-3 mb-2">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<p class="font-bold text-sm">' + q.nombre + '</p>' +
+              '<span class="text-xs font-mono font-bold px-2 py-0.5 rounded" style="background:#e8edf2; color:var(--primario)">' + q.formula + '</span>' +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-1 mt-2 text-[11px]" style="color:var(--texto-sec)">' +
+              '<p><span class="font-semibold" style="color:var(--texto)">Sistema:</span> ' + q.sistema + '</p>' +
+              '<p><span class="font-semibold" style="color:var(--texto)">Dureza Mohs:</span> ' + q.dureza + '</p>' +
+            '</div>' +
+            '<p class="text-[11px] italic mt-2 leading-relaxed" style="color:var(--texto-sec)"><i class="fa-solid fa-flask mr-1"></i>' + q.dato + '</p>' +
+          '</div>'
+        );
+      }).join('');
+
+      document.getElementById('contenido-detalle').innerHTML =
+        '<h2 class="text-xl font-bold">' + p.nombre + '</h2>' +
+        '<p class="text-sm mt-1" style="color:var(--texto-sec)"><i class="fa-solid fa-location-dot mr-1"></i>' + p.ubicacion + '</p>' +
+        '<p class="text-xs mt-0.5" style="color:var(--texto-sec)"><i class="fa-solid fa-building mr-1"></i>' + p.operador + '</p>' +
+        '<div class="mt-3">' + badgeHTML(p.estado) + '</div>' +
+        '<p class="text-sm leading-relaxed mt-4">' + p.descripcion + '</p>' +
+        '<h3 class="font-bold text-sm mt-5 mb-2">Minerales asociados</h3>' +
+        '<div class="flex flex-wrap gap-1.5">' + chipsMineralesHTML(p) + '</div>' +
+
+        // Botón que abre/cierra el acordeón con la química de minerales
+        '<button onclick="alternarQuimica()" class="mt-5 w-full flex items-center justify-between text-white font-semibold text-sm py-3 px-4 rounded-lg" style="background:var(--primario)">' +
+          '<span><i class="fa-solid fa-atom mr-2"></i>Ver detalle químico</span>' +
+          '<svg id="flecha-quimica" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s"><path d="M6 9l6 6 6-6"/></svg>' +
+        '</button>' +
+        '<div id="panel-quimica" class="acordeon"><div class="pt-3">' + fichas + '</div></div>' +
+
+        // Botón que lleva al mapa y centra el marcador del proyecto
+        '<button onclick="verEnMapa(' + p.id + ')" class="mt-3 w-full font-semibold text-sm py-3 px-4 rounded-lg border-2" style="border-color:var(--primario); color:var(--primario)">' +
+          '<i class="fa-solid fa-map-location-dot mr-2"></i>Ver en mapa' +
+        '</button>';
+
+      document.getElementById('hoja-detalle').classList.add('abierta');
+      document.getElementById('overlay').classList.add('visible');
+      document.body.style.overflow = 'hidden'; // evita el scroll del fondo
+      document.getElementById('contenido-detalle').scrollTop = 0;
+    }
+
+    function cerrarDetalle() { cerrarTodo(); }
+
+    // Abre o cierra el acordeón de química animando la altura máxima
+    function alternarQuimica() {
+      const panel = document.getElementById('panel-quimica');
+      const flecha = document.getElementById('flecha-quimica');
+      const abierto = panel.style.maxHeight && panel.style.maxHeight !== '0px';
+      panel.style.maxHeight = abierto ? '0px' : panel.scrollHeight + 'px';
+      flecha.style.transform = abierto ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
+    // Cierra el detalle, cambia a la vista Mapa y centra el proyecto
+    function verEnMapa(id) {
+      const p = PROYECTOS.find(function (x) { return x.id === id; });
+      cerrarTodo();
+      cambiarVista('mapa');
+      if (!mapaCompleto || !p) return;
+      setTimeout(function () {
+        mapaCompleto.setView(p.coords, 11);
+        if (marcadores[id]) marcadores[id].openPopup();
+      }, 450);
+    }
+
+    /* ============================================================
+       9) MAPAS LEAFLET (miniatura del Inicio + mapa completo)
+       Si la librería no cargó (sin internet), se muestra un mensaje
+       amigable en lugar de los mapas.
+       ============================================================ */
+    let mapaMini = null;
+    let mapaCompleto = null;
+    const marcadores = {}; // referencia a cada marcador por id de proyecto
+
+    function crearCapaBase() {
+      // Mapa base de OpenStreetMap (gratuito y de código abierto)
+      return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: '&copy; OpenStreetMap'
+      });
+    }
+
+    function marcadorProyecto(p, radio) {
+      // Círculo relleno con el color del estado y borde blanco
+      return L.circleMarker(p.coords, {
+        radius: radio,
+        fillColor: ESTADOS[p.estado].color,
+        color: '#ffffff',
+        weight: 2,
+        fillOpacity: 1
+      });
+    }
+
+    function iniciarMapas() {
+      // Si Leaflet no está disponible (sin conexión), mostramos el aviso
+      if (typeof L === 'undefined') {
+        document.querySelectorAll('.contenedor-mapa').forEach(function (c) {
+          c.innerHTML =
+            '<div class="aviso-offline">' +
+              '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><line x1="4" y1="4" x2="20" y2="20"/></svg>' +
+              '<p class="font-semibold">Mapa no disponible sin conexión.</p>' +
+              '<p>Los datos de proyectos siguen siendo consultables.</p>' +
+            '</div>';
+        });
+        return;
+      }
+
+      // --- Mapa miniatura del Inicio (centrado en San Juan) ---
+      mapaMini = L.map('mapa-mini', { zoomControl: false, attributionControl: false }).setView([-30.5, -69.0], 6);
+      crearCapaBase().addTo(mapaMini);
+      PROYECTOS.forEach(function (p) {
+        marcadorProyecto(p, 6).addTo(mapaMini).bindPopup('<b>' + p.nombre + '</b><br><span style="font-size:11px">' + ESTADOS[p.estado].nombre + '</span>');
+      });
+
+      // --- Mapa completo de la vista Mapa ---
+      mapaCompleto = L.map('mapa-full').setView([-30.5, -69.0], 7);
+      crearCapaBase().addTo(mapaCompleto);
+      PROYECTOS.forEach(function (p) {
+        const m = marcadorProyecto(p, 9).addTo(mapaCompleto);
+        m.bindPopup(
+          '<b>' + p.nombre + '</b><br>' +
+          '<div style="margin:6px 0">' + badgeHTML(p.estado) + '</div>' +
+          '<span style="font-size:12px; color:#7f8c8d">' + p.minerales.join(', ') + '</span>' +
+          '<button class="btn-popup" onclick="abrirDetalle(' + p.id + ')">Ver detalle</button>'
+        );
+        marcadores[p.id] = m;
+      });
+    }
+
+    // Botón brújula: centra el mapa en la ubicación GPS del usuario
+    function ubicarUsuario() {
+      if (!mapaCompleto) return;
+      if (!navigator.geolocation) {
+        mostrarToast('Tu navegador no permite geolocalización');
+        return;
+      }
+      mostrarToast('Buscando tu ubicación...');
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          const punto = [pos.coords.latitude, pos.coords.longitude];
+          mapaCompleto.setView(punto, 12);
+          L.circleMarker(punto, { radius: 8, fillColor: '#1a3a5c', color: '#fff', weight: 2, fillOpacity: 1 })
+            .addTo(mapaCompleto).bindPopup('<b>Estás aquí</b>').openPopup();
+        },
+        function () { mostrarToast('No se pudo obtener tu ubicación'); }
+      );
+    }
+
+    /* ============================================================
+       10) ARRANQUE DE LA APLICACIÓN
+       Genera los proyectos destacados, filtros, lista y mapas, y
+       muestra la vista de Inicio.
+       ============================================================ */
+    (function iniciar() {
+      // Los 4 proyectos destacados del Inicio: Veladero, Los Azules,
+      // Josemaría y Casposo (ids 1, 5, 6 y 3)
+      document.getElementById('lista-destacados').innerHTML =
+        [1, 5, 6, 3].map(function (id) {
+          return tarjetaDestacadaHTML(PROYECTOS.find(function (p) { return p.id === id; }));
+        }).join('');
+
+      renderFiltros();
+      renderLista();
+      iniciarMapas();
+      cambiarVista('inicio');
+    })();
+  </script>
+
+  <!-- ============================================================
+       REGISTRO DEL SERVICE WORKER
+       Es lo que permite que la app se instale y funcione sin
+       internet. Si el navegador no lo soporta, la app sigue
+       funcionando igual (por eso el catch no muestra errores).
+       ============================================================ -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {
+          console.log('Service worker no disponible (requiere HTTPS o localhost).');
+        });
+      });
+    }
+  </script>
+</body>
+</html>
