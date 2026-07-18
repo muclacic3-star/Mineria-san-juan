@@ -10,7 +10,7 @@
      al instante desde la copia y se actualizan en segundo plano.
    ============================================================ */
 
-const VERSION = 'v1.0-jul2026';
+const VERSION = 'v1.1-jul2026';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
