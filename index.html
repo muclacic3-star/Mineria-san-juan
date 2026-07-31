@@ -70,6 +70,18 @@
       overflow-x: hidden; /* nunca debe haber scroll horizontal */
     }
 
+    /* ===== JERARQUÍA VISUAL (STACKING CONTEXT) =====
+       Leaflet usa z-index internos muy altos (sus capas y controles
+       llegan hasta 1000). Si el mapa compartiera el mismo contexto de
+       apilamiento que el resto de la página, taparía al menú lateral
+       (z-index 70) y al overlay (50). Con "isolation: isolate" todos
+       esos z-index quedan encerrados dentro de <main>: el mapa solo
+       compite consigo mismo, y el orden global queda garantizado:
+       contenido (0) < header y barra inferior (40) < overlay (50)
+       < panel de detalle (60) < menú lateral (70) < toast (80). */
+    main { position: relative; isolation: isolate; z-index: 0; }
+    .contenedor-mapa { isolation: isolate; }
+
     /* ===== TRANSICIÓN ENTRE VISTAS (fade de 0.3s) ===== */
     .vista { display: none; opacity: 0; transition: opacity 0.3s ease; }
     .vista.activa { display: block; }
@@ -89,6 +101,12 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         cursor: pointer;
       }
+    }
+    /* Al navegar con teclado (Tab), la tarjeta enfocada se marca con
+       un contorno visible */
+    .tarjeta.interactiva:focus-visible {
+      outline: 2px solid var(--primario);
+      outline-offset: 2px;
     }
 
     /* ===== ETIQUETA (BADGE) DE ESTADO ===== */
@@ -176,8 +194,17 @@
     #toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* Botones flotantes sobre el mapa (leyenda y brújula) deben quedar
-       por encima de las capas de Leaflet (que usan z-index hasta ~700) */
+       por encima de las capas de Leaflet. Gracias al isolation de
+       <main>, este z-index alto NO se escapa hacia el resto de la app */
     .sobre-mapa { z-index: 1000; }
+
+    /* Altura del mapa completo: 100dvh descuenta las barras dinámicas
+       de los navegadores móviles (la línea con vh es el plan B para
+       navegadores antiguos que no conocen dvh) */
+    #mapa-full {
+      height: calc(100vh - 124px);
+      height: calc(100dvh - 124px);
+    }
 
     /* Popups de Leaflet con la tipografía de la app */
     .leaflet-popup-content { font-family: 'Inter', system-ui, sans-serif; margin: 12px 14px; }
@@ -200,7 +227,7 @@
   <header class="fixed top-0 left-0 right-0 z-40 shadow-md" style="background: var(--primario);">
     <div class="max-w-2xl mx-auto flex items-center justify-between px-4 h-[60px]">
       <!-- Botón hamburguesa: abre el menú lateral -->
-      <button onclick="abrirDrawer()" aria-label="Abrir menú" class="p-2 -ml-2 text-white">
+      <button id="btn-menu" onclick="abrirDrawer()" aria-label="Abrir menú" aria-expanded="false" aria-controls="drawer" class="p-2 -ml-2 text-white">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
         </svg>
@@ -243,7 +270,7 @@
       <button onclick="cambiarVista('noticias')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-regular fa-newspaper w-5 text-center" style="color:var(--primario)"></i> Noticias</button>
       <button onclick="cambiarVista('acerca')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-circle-info w-5 text-center" style="color:var(--primario)"></i> Acerca de</button>
     </div>
-    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.0 · julio 2026</p>
+    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.2 · julio 2026</p>
   </nav>
 
   <!-- Fondo oscuro compartido por drawer y panel de detalle -->
@@ -284,7 +311,10 @@
           Actualizado: julio 2026
         </div>
 
-        <!-- Tarjetas de estadísticas generales (4 indicadores) -->
+        <!-- Tarjetas de estadísticas generales (6 indicadores).
+             Los números NO están escritos a mano: se calculan solos en
+             iniciar() contando los proyectos del arreglo PROYECTOS, así
+             nunca pueden quedar desincronizados con los datos. -->
         <div class="grid grid-cols-2 gap-3">
           <div class="tarjeta p-4 flex items-center gap-3">
             <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e8edf2; color:var(--primario)">
@@ -293,7 +323,7 @@
                 <path d="M14 10 4 20"/><path d="M6.5 8.5C9 6 13 4.5 17 5.5 16 9.5 14.5 13.5 12 16"/><path d="M12 6l6 6"/>
               </svg>
             </span>
-            <div><p class="text-2xl font-bold leading-none">14</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Total proyectos</p></div>
+            <div><p id="stat-total" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Total proyectos</p></div>
           </div>
           <div class="tarjeta p-4 flex items-center gap-3">
             <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e6f4e7; color:var(--produccion)">
@@ -302,7 +332,16 @@
                 <path d="M4 12l5 5L20 6"/>
               </svg>
             </span>
-            <div><p class="text-2xl font-bold leading-none">2</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En producción</p></div>
+            <div><p id="stat-produccion" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En producción</p></div>
+          </div>
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#f3e5f5; color:var(--reactivacion)">
+              <!-- Icono flechas circulares (reactivación) -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+              </svg>
+            </span>
+            <div><p id="stat-reactivacion" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Reactivación</p></div>
           </div>
           <div class="tarjeta p-4 flex items-center gap-3">
             <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#fff3e0; color:var(--evaluacion)">
@@ -312,7 +351,7 @@
                 <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>
               </svg>
             </span>
-            <div><p class="text-2xl font-bold leading-none">4</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Evaluación avanzada</p></div>
+            <div><p id="stat-evaluacion" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Evaluación avanzada</p></div>
           </div>
           <div class="tarjeta p-4 flex items-center gap-3">
             <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e3f2fd; color:var(--exploracion)">
@@ -321,7 +360,16 @@
                 <circle cx="10.5" cy="10.5" r="6"/><line x1="15" y1="15" x2="20.5" y2="20.5"/>
               </svg>
             </span>
-            <div><p class="text-2xl font-bold leading-none">5</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En exploración</p></div>
+            <div><p id="stat-exploracion" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">En exploración</p></div>
+          </div>
+          <div class="tarjeta p-4 flex items-center gap-3">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#f0f0f0; color:var(--suspendido)">
+              <!-- Icono pausa (suspendido) -->
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/>
+              </svg>
+            </span>
+            <div><p id="stat-suspendido" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Suspendido</p></div>
           </div>
         </div>
 
@@ -360,8 +408,9 @@
     <!-- ══════════════ VISTA 3: MAPA COMPLETO ══════════════ -->
     <section id="vista-mapa" class="vista">
       <div class="relative">
-        <!-- El mapa ocupa casi toda la pantalla (descontando header y barra inferior) -->
-        <div id="mapa-full" class="contenedor-mapa w-full" style="height: calc(100vh - 124px);"></div>
+        <!-- El mapa ocupa casi toda la pantalla (descontando header y barra
+             inferior); su altura se define en el bloque de estilos (#mapa-full) -->
+        <div id="mapa-full" class="contenedor-mapa w-full"></div>
 
         <!-- Leyenda flotante con los colores de cada estado -->
         <div class="absolute bottom-4 left-4 sobre-mapa bg-white/95 rounded-xl p-3 shadow-lg text-[11px] space-y-1.5" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
@@ -389,37 +438,9 @@
     <section id="vista-noticias" class="vista">
       <div class="max-w-2xl mx-auto p-4 md:p-6">
         <h2 class="font-bold text-xl mb-4">Noticias</h2>
+        <!-- Sección editorial estática: cada noticia resume un hecho
+             verificado e incluye el enlace a su fuente original -->
         <div class="space-y-4">
-
-          <article class="tarjeta interactiva overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop" alt="Cordillera nevada"
-                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
-            <div class="p-4">
-              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>30/04/2026</p>
-              <h3 class="font-bold text-sm leading-snug mb-1">San Juan consolida liderazgo minero con USD 33.000 millones en inversiones</h3>
-              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Ocho proyectos estratégicos de cobre y oro posicionan a la provincia como el principal polo de inversión minera de Argentina para la próxima década.</p>
-            </div>
-          </article>
-
-          <article class="tarjeta interactiva overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&auto=format&fit=crop" alt="Montañas al amanecer"
-                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
-            <div class="p-4">
-              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>15/06/2026</p>
-              <h3 class="font-bold text-sm leading-snug mb-1">Los Azules confirma factibilidad: inicio de extracción proyectado para 2029</h3>
-              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">El megayacimiento de cobre de McEwen Copper avanza tras la publicación de su estudio de factibilidad y su aprobación en el régimen RIGI.</p>
-            </div>
-          </article>
-
-          <article class="tarjeta interactiva overflow-hidden">
-            <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop" alt="Montañas con niebla"
-                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
-            <div class="p-4">
-              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>10/05/2026</p>
-              <h3 class="font-bold text-sm leading-snug mb-1">Casposo reanuda operaciones tras seis años de inactividad</h3>
-              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">La mina de plata y oro de Calingasta vuelve a producir con reservas confirmadas para tres años y nuevas campañas de exploración en marcha.</p>
-            </div>
-          </article>
 
           <article class="tarjeta interactiva overflow-hidden">
             <img src="https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=800&auto=format&fit=crop" alt="Cordillera de altura"
@@ -428,6 +449,7 @@
               <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>22/06/2026</p>
               <h3 class="font-bold text-sm leading-snug mb-1">Josemaría avanza dentro del distrito Vicuña, uno de los mayores hallazgos de cobre de la década</h3>
               <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">La integración con Filo del Sol consolida un distrito minero binacional en Iglesia con recursos de cobre, oro y plata de clase mundial a más de 4.000 msnm.</p>
+              <a href="https://es.lundinmining.com/noticias/lundin-mining-announces-initial-mineral-resource-at-filo-del-sol-demonstrating-one-of-the-worlds-largest-copper-gold-and-silver-resources" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: Lundin Mining</a>
             </div>
           </article>
 
@@ -435,9 +457,43 @@
             <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&auto=format&fit=crop" alt="Montañas nevadas de noche"
                  class="w-full h-40 object-cover" onerror="this.style.display='none'">
             <div class="p-4">
-              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>05/06/2026</p>
-              <h3 class="font-bold text-sm leading-snug mb-1">Hualilán entra en preproducción: primer oro del depósito tipo skarn de Ullum</h3>
-              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Con la Declaración de Impacto Ambiental aprobada, Challenger Gold inicia la etapa de preproducción con recursos estimados en 1,8 millones de onzas de oro equivalente.</p>
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>02/06/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">Hualilán produjo su primera barra de doré y entra en producción</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Con la Declaración de Impacto Ambiental aprobada y el mineral procesado en la planta de Casposo, Challenger Gold logró la primera colada de oro y plata del depósito tipo skarn de Ullum.</p>
+              <a href="https://www.mineriaydesarrollo.com/noticias/2026/06/02/24661-historico-hualilan-produjo-su-primera-barra-de-metal-dore-en-san-juan" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: Minería &amp; Desarrollo</a>
+            </div>
+          </article>
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop" alt="Montañas con niebla"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>06/05/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">Casposo reanuda operaciones tras seis años de inactividad</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">La mina de plata y oro de Calingasta volvió a producir: reinició operaciones en octubre de 2025, produjo más de 4.000 onzas de oro equivalente en el último trimestre de ese año y proyecta duplicar su producción en 2026.</p>
+              <a href="https://www.ambito.com/energia/austral-gold-reactivo-la-mina-casposo-y-retomo-la-produccion-san-juan-n6274286" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: Ámbito</a>
+            </div>
+          </article>
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop" alt="Cordillera nevada"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>30/04/2026</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">San Juan consolida liderazgo minero con USD 33.000 millones en inversiones</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Ocho proyectos estratégicos de cobre y oro posicionan a la provincia como el principal polo de inversión minera de Argentina para la próxima década.</p>
+              <a href="https://www.mineriaydesarrollo.com/noticias/2026/04/30/24150-con-un-monto-de-usd33-mil-millones-san-juan-es-la-provincia-con-la-mayor-inversion-minera-en-el-pais" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: Minería &amp; Desarrollo</a>
+            </div>
+          </article>
+
+          <article class="tarjeta interactiva overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&auto=format&fit=crop" alt="Montañas al amanecer"
+                 class="w-full h-40 object-cover" onerror="this.style.display='none'">
+            <div class="p-4">
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>08/10/2025</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">Los Azules confirma factibilidad: producción proyectada hacia 2029-2030</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">El megayacimiento de cobre de McEwen Copper confirmó su viabilidad económica tras la publicación de su estudio de factibilidad y su ingreso al régimen RIGI.</p>
+              <a href="https://econojournal.com.ar/2025/10/cobre-el-proyecto-de-la-canadiense-mcewen-rio-tinto-y-stellantis-presento-estudio-de-factibilidad/" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: EconoJournal</a>
             </div>
           </article>
 
@@ -445,9 +501,10 @@
             <img src="https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=800&auto=format&fit=crop" alt="Picos montañosos"
                  class="w-full h-40 object-cover" onerror="this.style.display='none'">
             <div class="p-4">
-              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>18/05/2026</p>
-              <h3 class="font-bold text-sm leading-snug mb-1">El Pachón se suma al RIGI: otro pórfido de cobre de clase mundial en Calingasta</h3>
-              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">El histórico proyecto del cinturón pórfido del Mioceno avanza en su aprobación dentro del Régimen de Incentivos para Grandes Inversiones.</p>
+              <p class="text-[11px] mb-1" style="color:var(--texto-sec)"><i class="fa-regular fa-calendar mr-1"></i>20/08/2025</p>
+              <h3 class="font-bold text-sm leading-snug mb-1">El Pachón pide su ingreso al RIGI: otro pórfido de cobre de clase mundial en Calingasta</h3>
+              <p class="text-xs leading-relaxed" style="color:var(--texto-sec)">Glencore solicitó la adhesión del histórico proyecto de cobre y molibdeno al Régimen de Incentivos para Grandes Inversiones, con una inversión prevista de unos US$9.500 millones para su primera fase.</p>
+              <a href="https://www.glencore.com/media-and-insights/news/glencore-submits-RIGI-applications-in-respect-of-its-argentine-copper-projects" target="_blank" rel="noopener" class="inline-block mt-2 text-[11px] font-medium underline" style="color:var(--primario)"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Fuente: Glencore</a>
             </div>
           </article>
 
@@ -475,6 +532,11 @@
             <li class="flex gap-2"><i class="fa-solid fa-chart-line mt-0.5" style="color:var(--primario)"></i> El 85,5% de las exportaciones provinciales provienen de la minería.</li>
             <li class="flex gap-2"><i class="fa-solid fa-medal mt-0.5" style="color:var(--primario)"></i> 2° productor de oro del país, después de Santa Cruz.</li>
           </ul>
+          <p class="text-[10px] mt-3 pt-2 border-t border-gray-100" style="color:var(--texto-sec)">
+            Fuentes:
+            <a href="https://www.mineriaydesarrollo.com/noticias/2026/04/30/24150-con-un-monto-de-usd33-mil-millones-san-juan-es-la-provincia-con-la-mayor-inversion-minera-en-el-pais" target="_blank" rel="noopener" class="underline" style="color:var(--primario)">Minería &amp; Desarrollo (inversiones)</a> ·
+            <a href="https://www.tiempodesanjuan.com/mineria/san-juan-exporto-casi-1800-millones-dolares-minerales-el-ano-pasado-n421842" target="_blank" rel="noopener" class="underline" style="color:var(--primario)">Tiempo de San Juan (exportaciones)</a>
+          </p>
         </div>
 
         <!-- Sección Equipo: integrantes del grupo -->
@@ -504,9 +566,9 @@
           </div>
         </div>
 
-        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.0 - julio 2026</p>
+        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.2 - julio 2026</p>
         <p class="text-center text-[11px] leading-relaxed px-2 pb-4" style="color:var(--texto-sec)">
-          Datos basados en información del Ministerio de Minería de San Juan, Diario de Cuyo, MDZ Online y reportes corporativos de las empresas mineras (2025-2026).
+          Datos basados en información del <a href="https://sisanjuan.gob.ar/mineria" target="_blank" rel="noopener" class="underline">Ministerio de Minería de San Juan</a>, prensa especializada y reportes corporativos de las empresas mineras (2024-2026). Cada proyecto incluye sus fuentes en la ficha de detalle.
         </p>
       </div>
     </section>
@@ -517,7 +579,7 @@
        Se desliza desde abajo y ocupa el 80% de la pantalla.
        Su contenido se genera con JavaScript según el proyecto.
        ============================================================ -->
-  <div id="hoja-detalle" role="dialog" aria-label="Detalle del proyecto">
+  <div id="hoja-detalle" role="dialog" aria-modal="true" aria-label="Detalle del proyecto">
     <!-- Barra superior con manija y botón de cierre -->
     <div class="flex items-center justify-between px-5 pt-3 pb-1 shrink-0">
       <span class="w-10 h-1.5 rounded-full bg-gray-300 absolute left-1/2 -translate-x-1/2 top-2"></span>
@@ -591,65 +653,134 @@
 
     /* ============================================================
        2) DATOS: LOS 14 PROYECTOS MINEROS DE SAN JUAN (2026)
-       Información real: nombre, departamento, minerales, operador,
-       coordenadas geográficas (latitud, longitud) y descripción.
+       Información verificada con fuentes públicas (julio 2026):
+       nombre, departamento, minerales, operador, coordenadas
+       (latitud, longitud), descripción y fuentes consultables.
+       Nota: en proyectos de exploración tempranos, el marcador del
+       mapa indica la zona general del área de trabajo.
        ============================================================ */
     const PROYECTOS = [
       { id: 1, nombre: 'Veladero', ubicacion: 'Iglesia, cordillera', minerales: ['Oro', 'Plata'],
-        operador: 'Barrick Gold / Shandong Gold (Andina del Sol)', coords: [-29.3833, -69.9167], estado: 'produccion',
-        descripcion: 'Mayor yacimiento aurífero en producción de San Juan. Vida útil extendida hasta 2034. Planta de lixiviación en gran escala. Fases 7A y 7B en expansión. Ubicado a 4.000 msnm.' },
+        operador: 'Barrick Gold / Shandong Gold (Minera Andina del Sol)', coords: [-29.3833, -69.9167], estado: 'produccion',
+        descripcion: 'Mayor yacimiento aurífero en producción de San Juan, a unos 4.000 msnm. Su vida útil fue extendida hasta 2034. Opera con lixiviación en valle a gran escala. La expansión Fase 8, aprobada dentro del RIGI, prevé una inversión de US$400 millones entre 2025 y 2028.',
+        fuentes: [
+          { titulo: 'Gobierno de San Juan — Veladero extendió su vida útil hasta 2034', url: 'https://sisanjuan.gob.ar/23-mineria/2024-03-11/54671-veladero-extendio-10-anos-su-vida-util-y-proyecta-produccion-hasta-2034' },
+          { titulo: 'Ámbito — RIGI de US$400 millones para ampliar Veladero', url: 'https://www.ambito.com/energia/barrick-shandong-gold-presento-un-rigi-us400-millones-ampliar-la-mina-oro-veladero-n6178022' },
+          { titulo: 'Gobierno de San Juan — Proyectos mineros aprobados bajo el RIGI', url: 'https://sisanjuan.gob.ar/23-mineria/2025-12-26/65610-san-juan-lidera-los-proyectos-mineros-aprobados-bajo-el-rigi' }
+        ] },
 
       { id: 2, nombre: 'Gualcamayo', ubicacion: 'Jáchal, precordillera', minerales: ['Oro', 'Plata'],
-        operador: 'Mineros S.A. / ERIS LLC', coords: [-30.2500, -68.7500], estado: 'produccion',
-        descripcion: 'Yacimiento de oro y plata en explotación activa. Genera aproximadamente 450 empleos directos. Venta a ERIS LLC en 2023 aseguró la continuidad operativa a largo plazo.' },
+        operador: 'Minas Argentinas S.A. (AISA Group)', coords: [-30.2500, -68.7500], estado: 'produccion',
+        descripcion: 'Yacimiento de oro y plata en explotación en la precordillera de Jáchal, operado desde 2023 por el grupo AISA. Su proyecto Carbonatos Profundos —mineralización ubicada debajo de las zonas ya explotadas— fue aprobado en el RIGI en enero de 2026, con una inversión prevista de unos US$665 millones que extendería la operación por décadas.',
+        fuentes: [
+          { titulo: 'Panorama Minero — Gualcamayo recibe aprobación del RIGI', url: 'https://www.panorama-minero.com/es/news/gualcamayo-recibe-aprobacion-del-rigi' },
+          { titulo: 'Minas Argentinas — Sitio oficial del operador', url: 'https://minasargentinas.com/' },
+          { titulo: 'Revista Mercado — Inversión prevista tras el RIGI', url: 'https://mercado.com.ar/protagonistas/tras-la-aprobacion-del-rigi-minas-argentinas-contempla-una-inversion-superior-a-los-us-660-millones-para-explotacion-de-oro/' }
+        ] },
 
       { id: 3, nombre: 'Casposo', ubicacion: 'Calingasta, precordillera', minerales: ['Plata', 'Oro'],
-        operador: 'Austral Gold (Casposo Argentina)', coords: [-31.5000, -69.9000], estado: 'reactivacion',
-        descripcion: 'Reactivación anunciada en octubre 2025 tras años de inactividad. Reservas confirmadas para 3 años de producción inicial. Histórico de altas leyes: hasta 1.600 toneladas por día en 2011.' },
+        operador: 'Austral Gold (Casposo Argentina)', coords: [-31.2000, -69.6000], estado: 'reactivacion',
+        descripcion: 'Mina subterránea de plata y oro en Calingasta. Reinició operaciones en octubre de 2025, tras unos seis años de inactividad, con más de US$15 millones invertidos en exploración y reacondicionamiento de la planta. En el último trimestre de 2025 produjo 4.283 onzas de oro equivalente y la empresa proyecta duplicar la producción en 2026. Su planta también procesa mineral del vecino proyecto Hualilán.',
+        fuentes: [
+          { titulo: 'Ámbito — Austral Gold reactivó Casposo y retomó la producción', url: 'https://www.ambito.com/energia/austral-gold-reactivo-la-mina-casposo-y-retomo-la-produccion-san-juan-n6274286' },
+          { titulo: 'EconoJournal — Inversión a largo plazo en la reactivación', url: 'https://econojournal.com.ar/2026/05/inversion-a-largo-plazo-austral-gold-reactiva-la-produccion-de-la-mina-casposo-en-san-juan/' },
+          { titulo: 'El Inversor — Produjo más de 4.000 onzas tras reactivarse', url: 'https://www.elinversorenergetico.com/casposo-se-afianza-tras-su-reactivacion-produjo-mas-de-4-000-onzas-de-oro-y-define-su-plan-de-exploracion/' }
+        ] },
 
       { id: 4, nombre: 'Hualilán', ubicacion: 'Ullum, precordillera central', minerales: ['Oro', 'Plata', 'Zinc'],
-        operador: 'Golden Mining (Challenger Gold)', coords: [-31.3000, -69.3500], estado: 'reactivacion',
-        descripcion: 'Depósito tipo skarn. Declaración de Impacto Ambiental (DIA) otorgada en noviembre 2024. Iniciando fase de preproducción. Recursos estimados: ~1,8 millones de onzas de oro equivalente.' },
+        operador: 'Challenger Gold (Golden Mining)', coords: [-30.7333, -68.9500], estado: 'produccion',
+        descripcion: 'Depósito de oro tipo skarn en Ullum. Con la Declaración de Impacto Ambiental otorgada en noviembre de 2024, produjo su primera barra de doré en junio de 2026; el mineral inicial se procesa por acuerdo en la planta de Casposo. La empresa estima recursos por unos 2,8 millones de onzas de oro equivalente, y su estudio de factibilidad proyecta 14 años de vida útil con una producción total cercana a 1,84 millones de onzas equivalentes.',
+        fuentes: [
+          { titulo: 'Minería & Desarrollo — Hualilán produjo su primera barra de doré', url: 'https://www.mineriaydesarrollo.com/noticias/2026/06/02/24661-historico-hualilan-produjo-su-primera-barra-de-metal-dore-en-san-juan' },
+          { titulo: 'Tiempo de San Juan — Challenger confirmó su primera colada', url: 'https://www.tiempodesanjuan.com/mineria/hualilan-ya-produce-oro-challenger-confirmo-su-primera-colada-san-juan-n431753' },
+          { titulo: 'El Inversor — Challenger Gold valida la viabilidad de Hualilán', url: 'https://www.elinversorenergetico.com/mineria-de-oro-en-san-juan-challenger-gold-valida-viabilidad-de-hualilan/' }
+        ] },
 
       { id: 5, nombre: 'Los Azules', ubicacion: 'Calingasta, Cordillera Frontal', minerales: ['Cobre', 'Oro', 'Plata'],
-        operador: 'McEwen Copper (Andes Corporation)', coords: [-31.8000, -70.2000], estado: 'evaluacion',
-        descripcion: 'Megayacimiento porfírico de cobre. Inversión estimada US$2.300-2.500 millones. DIA aprobada diciembre 2024. Aprobado en Régimen de Incentivos para Grandes Inversiones (RIGI). Estudio de factibilidad publicado octubre 2025. Inicio de extracción proyectado para 2029. Ubicado a 3.600 msnm y 124 km de Villa Calingasta.' },
+        operador: 'McEwen Copper (Andes Corporación Minera)', coords: [-31.0600, -70.2200], estado: 'evaluacion',
+        descripcion: 'Megayacimiento de cobre tipo pórfido a unos 3.500 msnm en Calingasta, cerca del límite con Chile. Obtuvo su Declaración de Impacto Ambiental en diciembre de 2024 y su ingreso al RIGI se oficializó en 2025. El estudio de factibilidad de octubre de 2025 confirmó su viabilidad, con una inversión inicial estimada de US$3.170 millones y una vida útil de 27 años. La empresa proyecta iniciar la producción hacia 2029-2030.',
+        fuentes: [
+          { titulo: 'McEwen Copper — Estudio de factibilidad de Los Azules (octubre 2025)', url: 'https://www.mcewenmining.com/investor-relations/press-releases/press-release-details/2025/Los-Azules-Feasibility-Study-Confirms-Economically-Robust-Copper-Project-With-Leading-ESG-Performance/default.aspx' },
+          { titulo: 'Ámbito — Oficializan el ingreso de Los Azules al RIGI', url: 'https://www.ambito.com/energia/san-juan-oficializan-ingreso-del-proyecto-cobre-los-azules-al-rigi-us2672-millones-n6201538' },
+          { titulo: 'Parlamentario — Aval ambiental (DIA) en diciembre de 2024', url: 'https://www.parlamentario.com/2024/12/04/la-minera-los-azules-consiguio-el-aval-ambiental-para-su-proyecto-en-san-juan/' }
+        ] },
 
       { id: 6, nombre: 'Josemaría', ubicacion: 'Iglesia, Cordillera Frontal', minerales: ['Cobre', 'Oro', 'Plata'],
-        operador: 'Lundin Mining / Vicuña Corp', coords: [-29.5000, -70.1000], estado: 'evaluacion',
-        descripcion: 'Depósito porfírico a 4.295 msnm. Inversión estimada US$3.090 millones. 12,8 millones de toneladas de cobre medido. 32,2 millones de onzas de oro medido. 659 millones de onzas de plata medidas. Considerado entre los 10 mayores depósitos de cobre del mundo.' },
+        operador: 'Vicuña Corp (Lundin Mining y BHP)', coords: [-28.4350, -69.5480], estado: 'evaluacion',
+        descripcion: 'Depósito de cobre, oro y plata tipo pórfido en Iglesia, entre 4.400 y 4.800 msnm. Junto con Filo del Sol integra el distrito Vicuña, cuyos recursos conjuntos medidos e indicados (mayo 2025) suman 13 millones de toneladas de cobre, 32 millones de onzas de oro y 659 millones de onzas de plata: uno de los mayores recursos de cobre del mundo. El estudio de factibilidad de Josemaría (2020) estimó una inversión inicial de US$3.090 millones.',
+        fuentes: [
+          { titulo: 'Lundin Mining — Recurso mineral inicial del distrito Vicuña', url: 'https://es.lundinmining.com/noticias/lundin-mining-announces-initial-mineral-resource-at-filo-del-sol-demonstrating-one-of-the-worlds-largest-copper-gold-and-silver-resources' },
+          { titulo: 'Ámbito — Viaje al corazón de Vicuña (BHP y Lundin)', url: 'https://www.ambito.com/energia/viaje-al-corazon-vicuna-el-prometedor-proyecto-cobre-plata-y-oro-bhp-y-lundin-san-juan-n6243692' },
+          { titulo: 'Mining Technology — Ficha técnica del proyecto Josemaría', url: 'https://www.mining-technology.com/projects/josemaria-copper-gold-project-san-juan-province/' }
+        ] },
 
-      { id: 7, nombre: 'Altar', ubicacion: 'Calingasta', minerales: ['Cobre', 'Oro'],
-        operador: 'Aldebaran Resources', coords: [-31.7000, -70.1000], estado: 'evaluacion',
-        descripcion: 'Sistema pórfido de cobre-oro. Preparando solicitud para el Régimen de Incentivos para Grandes Inversiones (RIGI). Preliminary Economic Assessment (PEA) actualizada recientemente.' },
+      { id: 7, nombre: 'Altar', ubicacion: 'Calingasta, Cordillera Principal', minerales: ['Cobre', 'Oro'],
+        operador: 'Aldebaran Resources (80%) / Sibanye-Stillwater (20%)', coords: [-31.5000, -70.4400], estado: 'evaluacion',
+        descripcion: 'Sistema de pórfidos de cobre y oro en Calingasta, a unos 10 km del límite con Chile. La actualización de recursos de noviembre de 2024 duplicó el cobre contenido, y la evaluación económica preliminar (PEA) de octubre de 2025 delineó una vida útil de 48 años. La empresa evalúa su adhesión al RIGI.',
+        fuentes: [
+          { titulo: 'Aldebaran Resources — Sitio oficial del proyecto Altar', url: 'https://aldebaranresources.com/' },
+          { titulo: 'Ámbito — Aldebarán presenta la evaluación económica de Altar', url: 'https://www.ambito.com/energia/aldebaran-presenta-la-evaluacion-economica-del-proyecto-cobre-altar-san-juan-n6182430' },
+          { titulo: 'Redimin — Aumento significativo de recursos (noviembre 2024)', url: 'https://www.redimin.cl/argentina-aldebaran-resources-reporta-aumento-muy-significativo-en-recursos-minerales-en-el-proyecto-de-cobre-oro-altar-en-san-juan/' }
+        ] },
 
-      { id: 8, nombre: 'El Pachón', ubicacion: 'Calingasta / Iglesia', minerales: ['Cobre'],
-        operador: 'En proceso de definición', coords: [-31.9000, -70.3000], estado: 'evaluacion',
-        descripcion: 'En proceso de aprobación RIGI. Proyecto de clase mundial ubicado en el cinturón pórfido del Mioceno.' },
+      { id: 8, nombre: 'El Pachón', ubicacion: 'Calingasta, cordillera', minerales: ['Cobre', 'Molibdeno'],
+        operador: 'Glencore', coords: [-31.7550, -70.4310], estado: 'evaluacion',
+        descripcion: 'Histórico depósito de cobre y molibdeno de clase mundial en el cinturón de pórfidos del Mioceno, a 3.600 msnm y a solo 5 km del límite con Chile. Glencore solicitó su adhesión al RIGI en agosto de 2025, con una inversión prevista de unos US$9.500 millones para la fase 1, y estima iniciar la construcción hacia 2029. La campaña 2025-2026 completó más de 21.000 metros de perforación.',
+        fuentes: [
+          { titulo: 'Glencore — Solicitud de RIGI para sus proyectos de cobre argentinos', url: 'https://www.glencore.com/media-and-insights/news/glencore-submits-RIGI-applications-in-respect-of-its-argentine-copper-projects' },
+          { titulo: 'Diario Río Negro — Cierre de la campaña 2025-2026 de El Pachón', url: 'https://www.rionegro.com.ar/energia/el-pachon-avanza-en-san-juan-glencore-cerro-su-campana-2025-2026-destacando-las-inversiones-en-infraestructura-y-el-empleo-generado-4642153/' },
+          { titulo: 'Mejor Energía — Glencore solicita el RIGI por US$9.500 millones', url: 'https://www.mejorenergia.com.ar/noticias/2025/08/20/4514-glencore-solicita-ingresar-al-rigi-con-proyectos-de-cobre-por-us-14000-millones' }
+        ] },
 
       { id: 9, nombre: 'Taguas', ubicacion: 'Iglesia, Valle del Cura', minerales: ['Oro', 'Plata'],
         operador: 'Orvana Minerals', coords: [-29.2000, -69.8000], estado: 'exploracion',
-        descripcion: 'Depósito epitermal de oro-plata. Preliminary Economic Assessment (PEA) 2021. Perforación intensiva planificada para los próximos años.' },
+        descripcion: 'Depósito epitermal de oro y plata a más de 3.500 msnm, con potencial de pórfido de cobre y oro en profundidad. La campaña 2025-2026 combinó geofísica avanzada con una perforación profunda de unos 4.500 metros iniciada en enero de 2026. En junio de 2026 la empresa duplicó su superficie de exploración al adquirir la propiedad vecina Evelina.',
+        fuentes: [
+          { titulo: 'MASE — Orvana inicia perforación profunda de 4.500 metros', url: 'https://mase.lmneuquen.com/mineria/promesa-minera-san-juan-orvana-inicia-perforacion-profunda-4500-metros-taguas-n1225664' },
+          { titulo: 'Minería & Desarrollo — Orvana duplicó la superficie de Taguas', url: 'https://www.mineriaydesarrollo.com/noticias/2026/06/30/25141-orvana-duplico-la-superficie-de-exploracion-del-proyecto-taguas-en-san-juan' },
+          { titulo: 'Panorama Minero — Actualización de la exploración en Taguas', url: 'https://www.panorama-minero.com/es/news/san-juan-orvana-brindo-una-actualizacion-de-la-exploracion-en-el-proyecto-taguas' }
+        ] },
 
-      { id: 10, nombre: 'Río Cenicero', ubicacion: 'Calingasta, Cordillera Principal-Frontal', minerales: ['Cobre', 'Molibdeno', 'Oro', 'Plata'],
-        operador: 'Peregrine Metals / Aldebaran', coords: [-31.6000, -70.0000], estado: 'exploracion',
-        descripcion: 'Sistema pórfido de cobre-molibdeno con sobreimposición epitermal de oro-plata. Aproximadamente 13.000 metros perforados en 30 pozos.' },
+      { id: 10, nombre: 'Río Cenicero', ubicacion: 'Calingasta, Cordillera Principal', minerales: ['Cobre', 'Molibdeno', 'Oro', 'Plata'],
+        operador: 'Minera Peregrine Argentina (Aldebaran Resources)', coords: [-31.6000, -70.3000], estado: 'exploracion',
+        descripcion: 'Sistema de pórfido de cobre y molibdeno con sobreimposición epitermal de oro y plata, en el cinturón de El Pachón (Cordillera Principal, a unos 4.400 msnm). Acumula unos 13.000 metros perforados en 30 pozos y forma parte del paquete de propiedades vinculado al distrito Altar.',
+        fuentes: [
+          { titulo: 'Panorama Minero — Compendio Argentina Mining: Altar - Río Cenicero', url: 'https://issuu.com/panorama-minero/docs/argentina_mining_compendium_mar_2021_495/s/21013702' },
+          { titulo: 'Gobierno de San Juan — Los proyectos de cobre sanjuaninos', url: 'https://sisanjuan.gob.ar/mineria/2019-09-30/17687-cinco-proyectos-de-cobre-podrian-darle-a-san-juan-u-d-290-mil-millones' }
+        ] },
 
-      { id: 11, nombre: 'Piuquenes', ubicacion: 'Calingasta / Iglesia, Cordillera Frontal', minerales: ['Cobre', 'Oro'],
-        operador: 'Pampa Metals', coords: [-31.6500, -70.0500], estado: 'exploracion',
-        descripcion: 'Perforaciones recientes intersectaron mineralización pórfida hasta 790 metros de profundidad.' },
+      { id: 11, nombre: 'Piuquenes', ubicacion: 'Calingasta, Cordillera Principal', minerales: ['Cobre', 'Oro'],
+        operador: 'Pampa Metals (opción por el 80%)', coords: [-31.4400, -70.4600], estado: 'exploracion',
+        descripcion: 'Pórfido de cobre y oro descubierto recientemente, ubicado inmediatamente al norte del sistema Altar. Pampa Metals firmó una opción para adquirir el 80% del proyecto. Sus perforaciones recientes ampliaron el sistema hacia el noreste y en profundidad, con intervalos ricos en bornita.',
+        fuentes: [
+          { titulo: 'Panorama Minero — Programa inaugural de perforación en Piuquenes', url: 'https://www.panorama-minero.com/es/news/proyecto-piuquenes-pampa-metals-delinea-mineralizacion-de-porfido-de-cobre-oro-de-alta-ley-en-su-programa-inaugural-de-perforacion' },
+          { titulo: 'Rumbo Minero — Pampa Metals extiende el pórfido en profundidad', url: 'https://www.rumbominero.com/peru/noticias/internacionales/pampa-metals-mineralizacion-de-cobre-piuquenes/' }
+        ] },
 
       { id: 12, nombre: 'La Ortiga', ubicacion: 'Iglesia, Cordillera Frontal', minerales: ['Oro', 'Plata', 'Cobre'],
-        operador: 'Minera del Carmen', coords: [-29.3000, -69.9000], estado: 'exploracion',
-        descripcion: 'Área de exploración de 7.500 hectáreas. 7.518 metros de sondajes ejecutados. Manifestaciones epitermales y pórfidos.' },
+        operador: 'Minera del Carmen S.A.', coords: [-29.3000, -69.9000], estado: 'exploracion',
+        descripcion: 'Área de exploración de oro, plata y cobre en la Cordillera de La Ortiga (oeste de Iglesia), entre 3.700 y 4.700 msnm, dentro de la franja metalogénica de El Indio. Se explora bajo contrato con el IPEEM provincial y acumula 7.518 metros de sondajes en 30 pozos, con manifestaciones epitermales y pórfidos.',
+        fuentes: [
+          { titulo: 'IPEEM (Gobierno de San Juan) — Ficha del proyecto La Ortiga', url: 'https://web.sanjuan.gob.ar/ipeem/?page_id=187' },
+          { titulo: 'Gobierno de San Juan — Aprobación de la propuesta de trabajo', url: 'https://sisanjuan.gob.ar/mineria/2020-09-11/25704-se-aprobo-la-propuesta-de-trabajo-para-el-proyecto-minero-la-ortiga' }
+        ] },
 
       { id: 13, nombre: 'Santa Bárbara', ubicacion: 'Calingasta, Cordillera Frontal', minerales: ['Oro', 'Plata', 'Cobre', 'Bismuto'],
         operador: 'Aurora Mining', coords: [-31.5500, -69.9500], estado: 'exploracion',
-        descripcion: 'Continuidad histórica de la mina San Francisco de los Andes. Presencia de brechas de turmalina-cuarzo. Exploración activa desde 2019.' },
+        descripcion: 'Continuidad geológica de la histórica mina San Francisco de los Andes, que en el siglo XX produjo bismuto y cobre. La exploración busca oro, plata y cobre en brechas de turmalina y cuarzo, con campañas de perforación activas desde 2019.',
+        fuentes: [
+          { titulo: 'San Juan 8 — Nueva campaña de exploración de Aurora Mining', url: 'https://www.sanjuan8.com/san-juan/nueva-campana-exploracion-aurora-mining-calingasta-n1183016' },
+          { titulo: 'Mindat — Mina San Francisco de los Andes (referencia mineralógica)', url: 'https://www.mindat.org/loc-22991.html' },
+          { titulo: 'EconoJournal — Aceleran la exploración del proyecto San Francisco', url: 'https://econojournal.com.ar/2021/11/minera-canadiense-acelera-la-exploracion-del-proyecto-san-francisco-en-san-juan/' }
+        ] },
 
       { id: 14, nombre: 'Lama', ubicacion: 'Iglesia, Valle del Cura', minerales: ['Oro', 'Plata', 'Cobre'],
-        operador: 'Barrick Gold / Minera del Carmen', coords: [-29.3500, -69.9500], estado: 'suspendido',
-        descripcion: 'Parte argentina del extinto proyecto Pascua Lama. Proyecto suspendido internacionalmente por conflictos ambientales y judiciales.' }
+        operador: 'Barrick Gold', coords: [-29.3500, -69.9500], estado: 'suspendido',
+        descripcion: 'Sector argentino del proyecto binacional Pascua-Lama. Del lado chileno, la justicia ambiental ordenó en 2020 el cierre definitivo de Pascua por incumplimientos ambientales. Barrick mantiene el área en evaluación y no descartó desarrollar el lado argentino en el futuro, pero el proyecto continúa suspendido.',
+        fuentes: [
+          { titulo: 'La Nación — Chile clausuró el proyecto Pascua-Lama', url: 'https://www.lanacion.com.ar/economia/chile-clausuro-el-proyecto-minero-pascua-lama-y-afecta-a-san-juan-nid2101961/' },
+          { titulo: 'Diario Huarpe — La situación de Lama en San Juan', url: 'https://www.diariohuarpe.com/nota/con-la-situacion-de-lama-en-san-juan-barrick-analiza-el-cierre-de-mina--20244296058' }
+        ] }
     ];
 
     /* ============================================================
@@ -663,7 +794,7 @@
     const QUIMICA = [
       { nombre: 'Oro nativo',  formula: 'Au',            sistema: 'Cúbico',      dureza: '2.5-3',   dato: 'Metal noble, no se oxida en contacto con aire ni agua a temperatura ambiente' },
       { nombre: 'Plata nativa', formula: 'Ag',           sistema: 'Cúbico',      dureza: '2.5-3',   dato: 'Mejor conductor de electricidad y calor de todos los metales conocidos' },
-      { nombre: 'Calcopirita', formula: 'CuFeS₂',        sistema: 'Tetragonal',  dureza: '3.5-4',   dato: "Conocida como 'el mineral del loco' por su brillo irisado metálico" },
+      { nombre: 'Calcopirita', formula: 'CuFeS₂',        sistema: 'Tetragonal',  dureza: '3.5-4',   dato: 'Principal mena de cobre del mundo; su superficie alterada muestra iridiscencias azul-violáceas' },
       { nombre: 'Pirita',      formula: 'FeS₂',          sistema: 'Cúbico',      dureza: '6-6.5',   dato: 'A veces confundida con oro (oro de los tontos), pero es sulfuro de hierro' },
       { nombre: 'Esfalerita',  formula: 'ZnS',           sistema: 'Cúbico',      dureza: '3.5-4',   dato: 'Principal fuente de zinc a nivel mundial; en San Juan está presente en depósitos tipo skarn' },
       { nombre: 'Malaquita',   formula: 'Cu₂CO₃(OH)₂',   sistema: 'Monoclínico', dureza: '3.5-4',   dato: 'Carbonato de cobre de color verde intenso, formado por alteración superficial' },
@@ -744,9 +875,12 @@
 
       vistaActual = nombre;
 
-      // Actualiza la pestaña activa: azul oscuro la activa, gris las demás
+      // Actualiza la pestaña activa: azul oscuro la activa, gris las demás.
+      // aria-current avisa a los lectores de pantalla cuál está activa.
       document.querySelectorAll('.tab').forEach(function (t) {
-        t.style.color = (t.dataset.vista === nombre) ? 'var(--primario)' : 'var(--texto-sec)';
+        const activa = t.dataset.vista === nombre;
+        t.style.color = activa ? 'var(--primario)' : 'var(--texto-sec)';
+        if (activa) { t.setAttribute('aria-current', 'page'); } else { t.removeAttribute('aria-current'); }
       });
     }
 
@@ -756,13 +890,20 @@
     function abrirDrawer() {
       document.getElementById('drawer').classList.add('abierto');
       document.getElementById('overlay').classList.add('visible');
+      document.getElementById('btn-menu').setAttribute('aria-expanded', 'true');
     }
     function cerrarTodo() {
       document.getElementById('drawer').classList.remove('abierto');
       document.getElementById('hoja-detalle').classList.remove('abierta');
       document.getElementById('overlay').classList.remove('visible');
+      document.getElementById('btn-menu').setAttribute('aria-expanded', 'false');
       document.body.style.overflow = '';
     }
+
+    // Accesibilidad: la tecla Escape cierra el menú y el panel de detalle
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrarTodo();
+    });
 
     let timerToast = null;
     function mostrarToast(mensaje) {
@@ -790,11 +931,17 @@
       }).join(' ');
     }
 
+    // Accesibilidad: permite abrir una tarjeta con Enter o la barra
+    // espaciadora, como si fuera un botón de verdad
+    function teclaTarjeta(ev, id) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirDetalle(id); }
+    }
+
     // Tarjeta de la lista completa de proyectos (borde izquierdo de color)
     function tarjetaProyectoHTML(p) {
       const e = ESTADOS[p.estado];
       return (
-        '<div class="tarjeta interactiva p-4" style="border-left: 4px solid ' + e.color + '" onclick="abrirDetalle(' + p.id + ')">' +
+        '<div class="tarjeta interactiva p-4" role="button" tabindex="0" aria-label="Ver detalle de ' + p.nombre + '" style="border-left: 4px solid ' + e.color + '" onclick="abrirDetalle(' + p.id + ')" onkeydown="teclaTarjeta(event,' + p.id + ')">' +
           '<div class="flex items-start justify-between gap-2">' +
             '<div>' +
               '<p class="font-bold text-sm">' + p.nombre + '</p>' +
@@ -812,7 +959,7 @@
     function tarjetaDestacadaHTML(p) {
       const e = ESTADOS[p.estado];
       return (
-        '<div class="tarjeta interactiva p-3 flex items-center gap-3" onclick="abrirDetalle(' + p.id + ')">' +
+        '<div class="tarjeta interactiva p-3 flex items-center gap-3" role="button" tabindex="0" aria-label="Ver detalle de ' + p.nombre + '" onclick="abrirDetalle(' + p.id + ')" onkeydown="teclaTarjeta(event,' + p.id + ')">' +
           '<span class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background:' + e.color + '1a; color:' + e.color + '">' +
             '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20l6-11 4 7 3-5 5 9z"/></svg>' +
           '</span>' +
@@ -909,7 +1056,19 @@
         // Botón que lleva al mapa y centra el marcador del proyecto
         '<button onclick="verEnMapa(' + p.id + ')" class="mt-3 w-full font-semibold text-sm py-3 px-4 rounded-lg border-2" style="border-color:var(--primario); color:var(--primario)">' +
           '<i class="fa-solid fa-map-location-dot mr-2"></i>Ver en mapa' +
-        '</button>';
+        '</button>' +
+
+        // Fuentes verificables del proyecto (trazabilidad académica):
+        // enlaces que se abren en una pestaña nueva del navegador
+        (p.fuentes && p.fuentes.length
+          ? '<h3 class="font-bold text-sm mt-6 mb-2"><i class="fa-solid fa-book-open mr-1"></i>Fuentes</h3>' +
+            '<ul class="space-y-2 pb-2">' +
+              p.fuentes.map(function (f) {
+                return '<li class="text-xs leading-snug"><a href="' + f.url + '" target="_blank" rel="noopener" class="underline" style="color:var(--primario)">' +
+                       '<i class="fa-solid fa-arrow-up-right-from-square mr-1 text-[10px]"></i>' + f.titulo + '</a></li>';
+              }).join('') +
+            '</ul>'
+          : '');
 
       document.getElementById('hoja-detalle').classList.add('abierta');
       document.getElementById('overlay').classList.add('visible');
@@ -1029,6 +1188,15 @@
        muestra la vista de Inicio.
        ============================================================ */
     (function iniciar() {
+      // Estadísticas de la portada: se calculan contando el arreglo
+      // PROYECTOS, para que siempre coincidan con los datos reales
+      const conteo = {};
+      PROYECTOS.forEach(function (p) { conteo[p.estado] = (conteo[p.estado] || 0) + 1; });
+      document.getElementById('stat-total').textContent = PROYECTOS.length;
+      ['produccion', 'reactivacion', 'evaluacion', 'exploracion', 'suspendido'].forEach(function (clave) {
+        document.getElementById('stat-' + clave).textContent = conteo[clave] || 0;
+      });
+
       // Los 4 proyectos destacados del Inicio: Veladero, Los Azules,
       // Josemaría y Casposo (ids 1, 5, 6 y 3)
       document.getElementById('lista-destacados').innerHTML =
