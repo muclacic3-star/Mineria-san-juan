@@ -10,13 +10,15 @@
      al instante desde la copia y se actualizan en segundo plano.
    ============================================================ */
 
-const VERSION = 'v1.1-jul2026';
+const VERSION = 'v1.2-jul2026';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
-// Archivos que se guardan apenas se instala la app
+// Archivos que se guardan apenas se instala la app.
+// Nota: la página se guarda con la clave única './index.html' (y no
+// también como './') para que exista UNA sola copia que siempre se
+// actualiza; así ninguna versión vieja puede quedar "atrapada".
 const APP_SHELL = [
-  './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
@@ -34,14 +36,16 @@ self.addEventListener('install', function (evento) {
   );
 });
 
-// Al activar: borrar cachés de versiones anteriores
+// Al activar: borrar cachés de versiones anteriores.
+// Solo se tocan las cachés propias (prefijo 'msj-'), para no borrar
+// cachés de otras aplicaciones que compartan el mismo dominio.
 self.addEventListener('activate', function (evento) {
   evento.waitUntil(
     caches.keys()
       .then(function (claves) {
         return Promise.all(
           claves
-            .filter(function (c) { return c.indexOf(VERSION) === -1; })
+            .filter(function (c) { return c.indexOf('msj-') === 0 && c.indexOf(VERSION) === -1; })
             .map(function (c) { return caches.delete(c); })
         );
       })
@@ -56,15 +60,21 @@ self.addEventListener('fetch', function (evento) {
 
   const url = new URL(pedido.url);
 
-  // Navegación (abrir la app): intentar internet; si no hay, usar la copia
+  // Navegación (abrir la app): SIEMPRE se intenta internet primero
+  // (network-first), así cada visita con conexión trae la última
+  // versión publicada; la copia solo se usa si no hay red.
+  // Solo se guarda la copia si la respuesta fue correcta (status 200),
+  // para no guardar por accidente una página de error.
   if (pedido.mode === 'navigate') {
     evento.respondWith(
       fetch(pedido)
         .then(function (respuesta) {
-          const copia = respuesta.clone();
-          caches.open(CACHE_APP).then(function (cache) {
-            cache.put('./index.html', copia);
-          });
+          if (respuesta && respuesta.ok) {
+            const copia = respuesta.clone();
+            caches.open(CACHE_APP).then(function (cache) {
+              cache.put('./index.html', copia);
+            });
+          }
           return respuesta;
         })
         .catch(function () { return caches.match('./index.html'); })
@@ -77,10 +87,12 @@ self.addEventListener('fetch', function (evento) {
     evento.respondWith(
       caches.match(pedido).then(function (guardado) {
         return guardado || fetch(pedido).then(function (respuesta) {
-          const copia = respuesta.clone();
-          caches.open(CACHE_APP).then(function (cache) {
-            cache.put(pedido, copia);
-          });
+          if (respuesta && respuesta.ok) {
+            const copia = respuesta.clone();
+            caches.open(CACHE_APP).then(function (cache) {
+              cache.put(pedido, copia);
+            });
+          }
           return respuesta;
         });
       })
