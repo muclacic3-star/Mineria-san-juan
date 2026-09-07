@@ -10,7 +10,7 @@
      al instante desde la copia y se actualizan en segundo plano.
    ============================================================ */
 
-const VERSION = 'v1.2-jul2026';
+const VERSION = 'v1.3-sep2026';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
@@ -20,6 +20,7 @@ const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 // actualiza; así ninguna versión vieja puede quedar "atrapada".
 const APP_SHELL = [
   './index.html',
+  './actualizaciones.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -59,6 +60,10 @@ self.addEventListener('fetch', function (evento) {
   if (pedido.method !== 'GET') return;
 
   const url = new URL(pedido.url);
+  // Las respuestas del seguimiento siempre van a la red. La página conserva
+  // la última instantánea válida en localStorage y explica cuándo está offline.
+  const apiPath = new URL('./api/', self.registration.scope).pathname;
+  if (url.origin === self.location.origin && url.pathname.startsWith(apiPath)) return;
 
   // Navegación (abrir la app): SIEMPRE se intenta internet primero
   // (network-first), así cada visita con conexión trae la última
@@ -68,12 +73,10 @@ self.addEventListener('fetch', function (evento) {
   if (pedido.mode === 'navigate') {
     evento.respondWith(
       fetch(pedido)
-        .then(function (respuesta) {
+        .then(async function (respuesta) {
           if (respuesta && respuesta.ok) {
             const copia = respuesta.clone();
-            caches.open(CACHE_APP).then(function (cache) {
-              cache.put('./index.html', copia);
-            });
+            try { await (await caches.open(CACHE_APP)).put('./index.html', copia); } catch { /* Sin espacio. */ }
           }
           return respuesta;
         })
@@ -86,12 +89,10 @@ self.addEventListener('fetch', function (evento) {
   if (url.origin === self.location.origin) {
     evento.respondWith(
       caches.match(pedido).then(function (guardado) {
-        return guardado || fetch(pedido).then(function (respuesta) {
+        return guardado || fetch(pedido).then(async function (respuesta) {
           if (respuesta && respuesta.ok) {
             const copia = respuesta.clone();
-            caches.open(CACHE_APP).then(function (cache) {
-              cache.put(pedido, copia);
-            });
+            try { await (await caches.open(CACHE_APP)).put(pedido, copia); } catch { /* Sin espacio. */ }
           }
           return respuesta;
         });
@@ -106,12 +107,13 @@ self.addEventListener('fetch', function (evento) {
   evento.respondWith(
     caches.open(CACHE_EXT).then(function (cache) {
       return cache.match(pedido).then(function (guardado) {
-        const deRed = fetch(pedido).then(function (respuesta) {
+        const deRed = fetch(pedido).then(async function (respuesta) {
           if (respuesta && (respuesta.status === 200 || respuesta.type === 'opaque')) {
-            cache.put(pedido, respuesta.clone());
+            try { await cache.put(pedido, respuesta.clone()); } catch { /* Sin espacio. */ }
           }
           return respuesta;
         }).catch(function () { return guardado; });
+        evento.waitUntil(deRed.then(function () {}));
         return guardado || deRed;
       });
     })
