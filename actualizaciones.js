@@ -51,6 +51,10 @@ function popupProyectoHTML(project, mini) {
 (function () {
   const STORAGE_KEY = 'msj-snapshot-v1.3';
   const POLL_MS = 5 * 60 * 1000;
+  const pageURL = new URL(document.baseURI);
+  const snapshotURL = pageURL.origin === 'https://muclacic3-star.github.io'
+    ? new URL('https://mineria-san-juan.muclacic3.workers.dev/api/snapshot')
+    : new URL('api/snapshot', pageURL);
   let snapshot = null;
   let fetching = false;
   let nextCheck = 0;
@@ -159,7 +163,7 @@ function popupProyectoHTML(project, mini) {
       const timer = setTimeout(() => controller.abort(), 12000);
       let value;
       try {
-        const response = await fetch(new URL('api/snapshot', document.baseURI), { cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' } });
+        const response = await fetch(snapshotURL, { cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' } });
         if (!response.ok) throw new Error('No disponible');
         value = await response.json();
       } finally { clearTimeout(timer); }

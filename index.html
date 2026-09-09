@@ -320,8 +320,11 @@
           <div class="tarjeta p-4 flex items-center gap-3">
             <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background:#e8edf2; color:var(--primario)">
               <!-- Icono pico de mina -->
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M14 10 4 20"/><path d="M6.5 8.5C9 6 13 4.5 17 5.5 16 9.5 14.5 13.5 12 16"/><path d="M12 6l6 6"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <g transform="rotate(40 12 12)">
+                  <path d="M12 8v13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M2 10C5 1 19 1 22 10C16 6.5 8 6.5 2 10Z" fill="currentColor"/>
+                </g>
               </svg>
             </span>
             <div><p id="stat-total" class="text-2xl font-bold leading-none">–</p><p class="text-[11px] mt-1" style="color:var(--texto-sec)">Total proyectos</p></div>

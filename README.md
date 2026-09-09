@@ -51,7 +51,7 @@ Se prueban fechas imposibles, hechos antiguos y futuros, negaciones, mantenimien
 4. Ejecutar `pnpm db:remote`, `pnpm test`, `pnpm build` y `pnpm deploy`.
 5. Comprobar `/api/health` y `/api/snapshot` en el enlace que devuelva Cloudflare. `pending` significa que falta la primera consulta. Los horarios pueden demorar en propagarse.
 
-El horario `17 */6 * * *` usa UTC: en Argentina, 03:17, 09:17, 15:17 y 21:17. Página y servidor se publican juntos en Workers; publicar sólo HTML en GitHub Pages no activa el seguimiento.
+El horario `17 */6 * * *` usa UTC: en Argentina, 03:17, 09:17, 15:17 y 21:17. Página y servidor se publican juntos en Workers. La copia en `muclacic3-star.github.io/Mineria-san-juan/` consulta ese mismo servidor de Cloudflare; el Worker debe permanecer publicado para que el seguimiento funcione en ambos enlaces.
 
 `POST /api/refresh` permite una consulta inmediata sólo si se configura `ADMIN_TOKEN` con `pnpm exec wrangler secret put ADMIN_TOKEN` y se envía como Bearer. La interfaz nunca contiene ese secreto. Sin secreto, esta función administrativa está deshabilitada y el horario sigue funcionando.
 

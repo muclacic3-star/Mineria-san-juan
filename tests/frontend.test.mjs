@@ -18,26 +18,27 @@ function element() {
   };
 }
 
-function harness(saved = null) {
+function harness(saved = null, baseURI = 'https://app.example/') {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
   const listeners = {};
   const storage = new Map(saved ? [['msj-snapshot-v1.3', JSON.stringify(saved)]] : []);
   const queue = [];
+  const requestedURLs = [];
   let requests = 0;
   const layer = () => ({ style: {}, setView() { return this; }, addTo() { return this; }, bindPopup(x) { this.popup = x; return this; }, setPopupContent(x) { this.popup = x; }, setStyle(x) { this.style = x; } });
   const context = vm.createContext({ console, URL, Intl, Date, AbortController,
     setTimeout: () => 1, clearTimeout() {}, setInterval() {}, requestAnimationFrame: f => f(),
-    document: { getElementById: get, querySelector: () => null, querySelectorAll: () => [], createElement: element, body: element(), hidden: false, baseURI: 'https://app.example/', addEventListener: (n, fn) => { listeners[n] = fn; } },
+    document: { getElementById: get, querySelector: () => null, querySelectorAll: () => [], createElement: element, body: element(), hidden: false, baseURI, addEventListener: (n, fn) => { listeners[n] = fn; } },
     window: { scrollTo() {}, addEventListener: (n, fn) => { listeners[n] = fn; } },
     navigator: { onLine: true }, L: { map: layer, tileLayer: layer, circleMarker: layer },
     localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) },
-    fetch: async () => { requests++; const next = queue.shift(); if (!next || next instanceof Error) throw next || Error('offline'); return next; }
+    fetch: async (url) => { requests++; requestedURLs.push(url.href); const next = queue.shift(); if (!next || next instanceof Error) throw next || Error('offline'); return next; }
   });
   vm.runInContext(updater, context);
   for (const script of scripts) vm.runInContext(script, context);
   const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
-  return { get, listeners, storage, queue, context, settle, eval: code => vm.runInContext(code, context), requests: () => requests,
+  return { get, listeners, storage, queue, requestedURLs, context, settle, eval: code => vm.runInContext(code, context), requests: () => requests,
     async start() { listeners.DOMContentLoaded(); await settle(); },
     async refresh(value, status = 200) { queue.push({ ok: status === 200, json: async () => value }); await get('btn-actualizar-noticias').events.click(); await settle(); }
   };
@@ -113,12 +114,28 @@ test('event calendar dates and date-only source references keep the recorded day
   assert.match(app.eval("fechaVisible('2026-09-05T00:00:00.000Z', true)"), /^04/);
 });
 
-test('service worker leaves live API requests out of its cache', async () => {
+test('GitHub Pages reads the live Worker while other hosts use their own API', async () => {
+  for (const [baseURI, expected] of [
+    ['https://muclacic3-star.github.io/Mineria-san-juan/', 'https://mineria-san-juan.muclacic3.workers.dev/api/snapshot'],
+    ['https://mineria-san-juan.muclacic3.workers.dev/', 'https://mineria-san-juan.muclacic3.workers.dev/api/snapshot'],
+    ['http://localhost:8787/', 'http://localhost:8787/api/snapshot']
+  ]) {
+    const app = harness(null, baseURI);
+    app.queue.push({ ok: true, json: async () => snapshot() });
+    await app.start();
+    assert.equal(app.requestedURLs[0], expected);
+    assert.match(app.get('aviso-actualizacion').textContent, /Noticias consultadas|referencias de las fichas/);
+    assert.ok(app.storage.has('msj-snapshot-v1.3'));
+  }
+});
+
+test('service worker leaves live API requests out of its cache, including the Worker from Pages', async () => {
   const handlers = {};
   const source = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const context = vm.createContext({ URL, self: { location: { origin: 'https://app.example' }, registration: { scope: 'https://app.example/' }, addEventListener: (name, fn) => { handlers[name] = fn; } } });
   vm.runInContext(source, context);
   let intercepted = false;
   handlers.fetch({ request: { method: 'GET', url: 'https://app.example/api/snapshot', mode: 'cors' }, respondWith() { intercepted = true; } });
+  handlers.fetch({ request: { method: 'GET', url: 'https://mineria-san-juan.muclacic3.workers.dev/api/snapshot', mode: 'cors' }, respondWith() { intercepted = true; } });
   assert.equal(intercepted, false);
 });

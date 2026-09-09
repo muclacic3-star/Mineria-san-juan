@@ -10,7 +10,7 @@
      al instante desde la copia y se actualizan en segundo plano.
    ============================================================ */
 
-const VERSION = 'v1.3-sep2026';
+const VERSION = 'v1.3-sep2026-pickaxe-1';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
@@ -64,6 +64,7 @@ self.addEventListener('fetch', function (evento) {
   // la última instantánea válida en localStorage y explica cuándo está offline.
   const apiPath = new URL('./api/', self.registration.scope).pathname;
   if (url.origin === self.location.origin && url.pathname.startsWith(apiPath)) return;
+  if (url.origin === 'https://mineria-san-juan.muclacic3.workers.dev' && url.pathname.startsWith('/api/')) return;
 
   // Navegación (abrir la app): SIEMPRE se intenta internet primero
   // (network-first), así cada visita con conexión trae la última
