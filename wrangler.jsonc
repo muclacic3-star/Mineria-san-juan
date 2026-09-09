@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mineria-san-juan",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-06",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mineria-san-juan",
+      "database_id": "8a19b2cc-25f0-49a5-9eb6-d05a36dd3678",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": { "crons": ["17 */6 * * *"] },
+  "observability": { "enabled": true }
+}

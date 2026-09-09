@@ -1,0 +1,22 @@
+[
+  {
+    "id": "mineria-desarrollo",
+    "kind": "rss",
+    "name": "Minería y Desarrollo",
+    "url": "https://www.mineriaydesarrollo.com/rss/mineria/",
+    "allowedHosts": ["www.mineriaydesarrollo.com", "mineriaydesarrollo.com"],
+    "publisherGroup": "mineria-desarrollo",
+    "trust": "press",
+    "statusAuthorityProjectIds": []
+  },
+  {
+    "id": "tiempo-san-juan",
+    "kind": "rss",
+    "name": "Tiempo de San Juan · Minería",
+    "url": "https://www.tiempodesanjuan.com/rss/mineria.xml",
+    "allowedHosts": ["www.tiempodesanjuan.com", "tiempodesanjuan.com"],
+    "publisherGroup": "tiempo-san-juan",
+    "trust": "press",
+    "statusAuthorityProjectIds": []
+  }
+]
