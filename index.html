@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- ============================================================
      Proyecto educativo - Concurso Mineralogía San Juan - 2026
-     Aplicación web de una sola página (SPA) en un único archivo.
+     Aplicación web de una sola página (SPA).
      Tecnologías: HTML5 + Tailwind CSS (CDN) + Leaflet.js (mapas)
      + JavaScript puro (Vanilla JS, sin frameworks).
      PWA: instalable como app (manifest.webmanifest + sw.js).
@@ -16,17 +16,19 @@
   <!-- theme-color: la barra del navegador en Android toma este color azul -->
   <meta name="theme-color" content="#1a3a5c">
   <title>Minería San Juan - Estado de Proyectos</title>
+  <meta name="application-version" content="1.4.0">
 
   <!-- ===== INSTALACIÓN COMO APP (PWA) ===== -->
   <!-- Estas etiquetas permiten que el celular la instale como app:
        con ícono propio en la pantalla de inicio y a pantalla completa -->
-  <meta name="description" content="Estado actualizado de los proyectos mineros de la provincia de San Juan, Argentina: mapa interactivo, fichas de química de minerales y noticias. Proyecto educativo 2026.">
+  <meta name="description" content="Proyectos mineros de San Juan: mapas, minerales, noticias y un piloto de agua e impactos documentados de Veladero. Proyecto educativo 2026.">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Minería SJ">
   <!-- Manifiesto: nombre, íconos y colores oficiales de la app -->
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="agua-impactos.css">
   <!-- Íconos para la pestaña del navegador y la pantalla de inicio -->
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -270,7 +272,7 @@
       <button onclick="cambiarVista('noticias')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-regular fa-newspaper w-5 text-center" style="color:var(--primario)"></i> Noticias</button>
       <button onclick="cambiarVista('acerca')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-circle-info w-5 text-center" style="color:var(--primario)"></i> Acerca de</button>
     </div>
-    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.3 · septiembre 2026</p>
+    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.4 · piloto Veladero</p>
   </nav>
 
   <!-- Fondo oscuro compartido por drawer y panel de detalle -->
@@ -311,6 +313,14 @@
           <span id="fecha-actualizacion">Referencia inicial: julio de 2026</span>
         </div>
         <p id="aviso-actualizacion" class="text-sm" role="status" aria-live="polite">Consultando las últimas novedades…</p>
+
+        <button id="abrir-piloto-veladero" type="button" class="ai-entry" onclick="abrirPilotoVeladero()">
+          <span class="ai-entry-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z"/><path d="M8 15a4 4 0 0 0 4 4"/></svg>
+          </span>
+          <span><span class="ai-eyebrow">PILOTO · VELADERO</span><span class="ai-entry-title">Agua e impactos</span><span class="ai-entry-description">Consultá la evidencia y los datos que faltan.</span></span>
+          <span class="ai-entry-arrow" aria-hidden="true">↗</span>
+        </button>
 
         <!-- Tarjetas de estadísticas generales (6 indicadores).
              Los números NO están escritos a mano: se calculan solos en
@@ -584,7 +594,7 @@
           </div>
         </div>
 
-        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.3 · septiembre 2026</p>
+        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.4 · piloto Veladero · septiembre 2026</p>
         <p class="text-center text-[11px] leading-relaxed px-2 pb-4" style="color:var(--texto-sec)">
           Datos basados en información del <a href="https://sisanjuan.gob.ar/mineria" target="_blank" rel="noopener" class="underline">Ministerio de Minería de San Juan</a>, prensa especializada y reportes corporativos de las empresas mineras (2024-2026). Cada proyecto incluye sus fuentes en la ficha de detalle.
         </p>
@@ -597,12 +607,12 @@
        Se desliza desde abajo y ocupa el 80% de la pantalla.
        Su contenido se genera con JavaScript según el proyecto.
        ============================================================ -->
-  <div id="hoja-detalle" role="dialog" aria-modal="true" aria-label="Detalle del proyecto">
+  <div id="hoja-detalle" role="dialog" aria-modal="true" aria-label="Detalle del proyecto" aria-hidden="true" inert>
     <!-- Barra superior con manija y botón de cierre -->
     <div class="flex items-center justify-between px-5 pt-3 pb-1 shrink-0">
       <span class="w-10 h-1.5 rounded-full bg-gray-300 absolute left-1/2 -translate-x-1/2 top-2"></span>
       <span></span>
-      <button onclick="cerrarDetalle()" aria-label="Cerrar" class="p-2 -mr-2" style="color:var(--texto-sec)">
+      <button id="cerrar-detalle" onclick="cerrarDetalle()" aria-label="Cerrar" class="p-2 -mr-2" style="color:var(--texto-sec)">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
         </svg>
@@ -654,6 +664,7 @@
   </nav>
 
   <script src="actualizaciones.js"></script>
+  <script src="agua-impactos.js"></script>
   <!-- ============================================================
        LÓGICA DE LA APLICACIÓN (JavaScript puro)
        ============================================================ -->
@@ -916,14 +927,30 @@
     function cerrarTodo() {
       document.getElementById('drawer').classList.remove('abierto');
       document.getElementById('hoja-detalle').classList.remove('abierta');
+      document.getElementById('hoja-detalle').setAttribute('aria-hidden', 'true');
+      document.getElementById('hoja-detalle').setAttribute('inert', '');
       document.getElementById('overlay').classList.remove('visible');
       document.getElementById('btn-menu').setAttribute('aria-expanded', 'false');
       document.body.style.overflow = '';
+      if (focoAntesDelDetalle?.isConnected) focoAntesDelDetalle.focus({ preventScroll: true });
+      focoAntesDelDetalle = null;
     }
 
     // Accesibilidad: la tecla Escape cierra el menú y el panel de detalle
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') cerrarTodo();
+      const dialogo = document.getElementById('hoja-detalle');
+      if (e.key === 'Tab' && dialogo.classList.contains('abierta')) {
+        const destinos = [...dialogo.querySelectorAll('button, a[href], select, summary, [tabindex="0"]')]
+          .filter(el => !el.disabled && el.getClientRects().length);
+        const primero = destinos[0], ultimo = destinos[destinos.length - 1];
+        if (primero && (!dialogo.contains(document.activeElement) ||
+          (e.shiftKey && (document.activeElement === primero || document.activeElement?.id === 'piloto-veladero')) ||
+          (!e.shiftKey && document.activeElement === ultimo))) {
+          e.preventDefault();
+          (e.shiftKey ? ultimo : primero).focus();
+        }
+      }
     });
 
     let timerToast = null;
@@ -1037,9 +1064,11 @@
        8) PANEL DE DETALLE (BOTTOM SHEET) Y QUÍMICA DE MINERALES
        ============================================================ */
     let proyectoAbiertoId = null;
+    let focoAntesDelDetalle = null;
     function abrirDetalle(id) {
       const p = PROYECTOS.find(function (x) { return x.id === id; });
       if (!p) return;
+      if (!document.getElementById('hoja-detalle').classList.contains('abierta')) focoAntesDelDetalle = document.activeElement;
       proyectoAbiertoId = id;
       const e = ESTADOS[p.estado];
 
@@ -1067,6 +1096,7 @@
         '<p class="text-xs mt-0.5" style="color:var(--texto-sec)"><i class="fa-solid fa-building mr-1"></i>' + p.operador + '</p>' +
         '<div id="estado-detalle-actual" class="mt-3">' + badgeHTML(p.estado) + verificacionHTML(p, false) + '</div>' +
         '<details class="mt-4"><summary class="text-sm font-semibold cursor-pointer">Descripción de referencia · julio 2026</summary><p class="text-sm leading-relaxed mt-2">' + p.descripcion + '</p></details>' +
+        (p.id === 1 ? '<div id="piloto-veladero" class="ai-mount" tabindex="-1"><h3>Agua e impactos</h3><p role="status">Cargando la ficha documental…</p></div>' : '') +
         '<h3 class="font-bold text-sm mt-5 mb-2">Minerales asociados</h3>' +
         '<div class="flex flex-wrap gap-1.5">' + chipsMineralesHTML(p) + '</div>' +
 
@@ -1095,9 +1125,27 @@
           : '');
 
       document.getElementById('hoja-detalle').classList.add('abierta');
+      document.getElementById('hoja-detalle').removeAttribute('inert');
+      document.getElementById('hoja-detalle').setAttribute('aria-hidden', 'false');
       document.getElementById('overlay').classList.add('visible');
       document.body.style.overflow = 'hidden'; // evita el scroll del fondo
       document.getElementById('contenido-detalle').scrollTop = 0;
+      document.getElementById('cerrar-detalle').focus?.({ preventScroll: true });
+      if (id === 1 && typeof AguaImpactos !== 'undefined') {
+        return AguaImpactos.mount(document.getElementById('piloto-veladero'), id);
+      }
+    }
+
+    function abrirPilotoVeladero() {
+      const cargando = abrirDetalle(1);
+      const panel = document.getElementById('piloto-veladero');
+      panel.focus({ preventScroll: true });
+      // Esperar al contenido evita que una ficha corta limite el desplazamiento inicial.
+      Promise.resolve(cargando).then(function () {
+        if (!panel.isConnected || !document.getElementById('hoja-detalle').classList.contains('abierta')) return;
+        const contenido = document.getElementById('contenido-detalle');
+        contenido.scrollTop += panel.getBoundingClientRect().top - contenido.getBoundingClientRect().top - 12;
+      });
     }
 
     function cerrarDetalle() { cerrarTodo(); }

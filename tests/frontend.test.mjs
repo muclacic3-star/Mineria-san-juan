@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const updater = await readFile(new URL('../actualizaciones.js', import.meta.url), 'utf8');
+const pilotModule = await readFile(new URL('../agua-impactos.js', import.meta.url), 'utf8');
+const pilotData = JSON.parse(await readFile(new URL('../data/veladero.json', import.meta.url), 'utf8'));
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x => x[1]).filter(x => x.includes('const PROYECTOS'));
 const seed = JSON.parse(await readFile(new URL('../src/projects-seed.json', import.meta.url), 'utf8'));
 
@@ -14,7 +16,8 @@ function element() {
     classList: { add: (...xs) => xs.forEach(x => classes.add(x)), remove: (...xs) => xs.forEach(x => classes.delete(x)), contains: x => classes.has(x) },
     setAttribute() {}, removeAttribute() {},
     append(...xs) { this.children.push(...xs); }, replaceChildren(...xs) { this.children = xs; },
-    addEventListener(name, fn) { this.events[name] = fn; }
+    addEventListener(name, fn) { this.events[name] = fn; },
+    querySelector() { return null; }
   };
 }
 
@@ -33,9 +36,14 @@ function harness(saved = null, baseURI = 'https://app.example/') {
     window: { scrollTo() {}, addEventListener: (n, fn) => { listeners[n] = fn; } },
     navigator: { onLine: true }, L: { map: layer, tileLayer: layer, circleMarker: layer },
     localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) },
-    fetch: async (url) => { requests++; requestedURLs.push(url.href); const next = queue.shift(); if (!next || next instanceof Error) throw next || Error('offline'); return next; }
+    fetch: async (url) => {
+      requests++; requestedURLs.push(url.href);
+      if (url.pathname.endsWith('/data/veladero.json')) return { ok: true, json: async () => structuredClone(pilotData) };
+      const next = queue.shift(); if (!next || next instanceof Error) throw next || Error('offline'); return next;
+    }
   });
   vm.runInContext(updater, context);
+  vm.runInContext(pilotModule, context);
   for (const script of scripts) vm.runInContext(script, context);
   const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   return { get, listeners, storage, queue, requestedURLs, context, settle, eval: code => vm.runInContext(code, context), requests: () => requests,
@@ -138,4 +146,55 @@ test('service worker leaves live API requests out of its cache, including the Wo
   handlers.fetch({ request: { method: 'GET', url: 'https://app.example/api/snapshot', mode: 'cors' }, respondWith() { intercepted = true; } });
   handlers.fetch({ request: { method: 'GET', url: 'https://mineria-san-juan.muclacic3.workers.dev/api/snapshot', mode: 'cors' }, respondWith() { intercepted = true; } });
   assert.equal(intercepted, false);
+});
+
+test('the Veladero pilot survives a live news refresh and is absent from other mine details', async () => {
+  const app = harness(); await app.start();
+  app.eval('abrirDetalle(2)');
+  assert.doesNotMatch(app.get('contenido-detalle').innerHTML, /id="piloto-veladero"/);
+  assert.equal(app.requestedURLs.filter(url => url.endsWith('data/veladero.json')).length, 0);
+  app.eval('abrirDetalle(1)'); await app.settle();
+  const panel = app.get('piloto-veladero');
+  assert.match(panel.innerHTML, /Comparador pendiente de documentación/);
+  assert.match(panel.innerHTML, /Empleo y aportes económicos/);
+  const content = panel.innerHTML;
+  app.get('contenido-detalle').scrollTop = 640;
+  const updated = snapshot(); updated.projects[0].estado = 'suspendido';
+  await app.refresh(updated);
+  assert.equal(panel.innerHTML, content);
+  assert.equal(app.get('contenido-detalle').scrollTop, 640);
+  assert.match(app.get('estado-detalle-actual').innerHTML, /Suspendido/);
+  assert.equal(app.requestedURLs.filter(url => url.endsWith('data/veladero.json')).length, 1);
+});
+
+test('upgrading the service worker precaches the pilot and keeps it available without network', async () => {
+  const handlers = {};
+  const stores = new Map([['msj-app-v1.3-sep2026-pickaxe-1', new Map()], ['another-app', new Map()]]);
+  const scope = 'https://muclacic3-star.github.io/Mineria-san-juan/';
+  const key = request => new URL(typeof request === 'string' ? request : request.url, scope).href;
+  const cacheAPI = {
+    keys: async () => [...stores.keys()],
+    delete: async name => stores.delete(name),
+    open: async name => {
+      if (!stores.has(name)) stores.set(name, new Map());
+      const saved = stores.get(name);
+      return { addAll: async paths => { for (const path of paths) saved.set(key(path), { ok: true, path }); },
+        match: async request => saved.get(key(request)) };
+    },
+    match: async request => { for (const saved of stores.values()) if (saved.has(key(request))) return saved.get(key(request)); }
+  };
+  const context = vm.createContext({ URL, caches: cacheAPI, fetch: async () => { throw Error('offline'); },
+    self: { location: { origin: 'https://muclacic3-star.github.io' }, registration: { scope },
+      addEventListener: (name, fn) => { handlers[name] = fn; }, skipWaiting: async () => {}, clients: { claim: async () => {} } }
+  });
+  vm.runInContext(await readFile(new URL('../sw.js', import.meta.url), 'utf8'), context);
+  let pending;
+  handlers.install({ waitUntil: promise => { pending = promise; } }); await pending;
+  handlers.activate({ waitUntil: promise => { pending = promise; } }); await pending;
+  assert.ok(!stores.has('msj-app-v1.3-sep2026-pickaxe-1'));
+  assert.ok(stores.has('another-app'));
+  for (const path of ['agua-impactos.js', 'agua-impactos.css', 'data/veladero.json']) {
+    handlers.fetch({ request: { method: 'GET', mode: 'cors', url: new URL(path, scope).href }, respondWith: promise => { pending = promise; } });
+    assert.equal((await pending).path, './' + path);
+  }
 });
