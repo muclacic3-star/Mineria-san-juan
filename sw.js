@@ -10,7 +10,7 @@
      al instante desde la copia y se actualizan en segundo plano.
    ============================================================ */
 
-const VERSION = 'v1.3-sep2026-pickaxe-1';
+const VERSION = 'v1.4-sep2026-veladero-2';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
@@ -21,6 +21,9 @@ const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 const APP_SHELL = [
   './index.html',
   './actualizaciones.js',
+  './agua-impactos.js',
+  './agua-impactos.css',
+  './data/veladero.json',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

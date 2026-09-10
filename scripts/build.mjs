@@ -2,8 +2,11 @@ import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import '../agua-impactos.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const pilot = JSON.parse(await readFile(path.join(root, 'data/veladero.json'), 'utf8'));
+globalThis.AguaImpactos.validateData(pilot);
 const html = await readFile(path.join(root, 'index.html'), 'utf8');
 const literal = html.match(/const PROYECTOS = (\[[\s\S]*?\n    \]);/);
 if (!literal) throw new Error('No se encontró el catálogo de proyectos.');
@@ -22,7 +25,7 @@ await writeFile(path.join(root, 'src/projects-seed.json'), JSON.stringify(projec
   baselineReferenceAt: '2026-07-31T23:59:59.000Z'
 })), null, 2) + '\n');
 await mkdir(path.join(root, 'public'), { recursive: true });
-for (const file of ['index.html', 'actualizaciones.js', 'sw.js', 'manifest.webmanifest', 'icons']) {
+for (const file of ['index.html', 'actualizaciones.js', 'agua-impactos.js', 'agua-impactos.css', 'data', 'sw.js', 'manifest.webmanifest', 'icons']) {
   await cp(path.join(root, file), path.join(root, 'public', file), { recursive: true });
 }
-console.log('Aplicación preparada: 14 proyectos, noticias y estados conectados.');
+console.log('Aplicación 1.4 preparada: 14 proyectos, noticias y piloto documental de Veladero.');

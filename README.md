@@ -1,8 +1,24 @@
-# Minería San Juan · versión 1.3
+# Minería San Juan · versión 1.4 (piloto en preparación)
 
-Aplicación educativa sobre 14 proyectos mineros de San Juan, preparada para una exposición escolar. Conserva las fichas, mapas y química de minerales de la versión 1.2 y añade noticias en Cloudflare Workers con una base de datos D1.
+Aplicación educativa sobre 14 proyectos mineros de San Juan, preparada para una exposición escolar. La 1.4 incorpora una ficha de agua e impactos documentados de Veladero. Conserva mapas, química de minerales y noticias de la 1.3 en Cloudflare Workers con D1.
 
-**Abrir la versión 1.3:** https://mineria-san-juan.muclacic3.workers.dev/
+**Sitio público estable (1.3):** https://mineria-san-juan.muclacic3.workers.dev/
+
+## Piloto de agua e impactos
+
+En Inicio, **Agua e impactos** abre la sección de Veladero. La ficha distingue antecedentes históricos documentados, declaraciones empresariales y cuestiones no determinadas. Cada fuente muestra su autor, fecha y alcance. La revisión documental no equivale a una nueva medición del agua.
+
+**Estado de esta entrega:** interfaz, ficha documental y lógica del comparador preparadas; agua pendiente. El ensayo SGS MA25-01373 disponible es preliminar y sus códigos no tienen ubicaciones geográficas incorporadas. No se publican sus cifras como una campaña verificada. La 1.4 completa requiere un informe final con dos a cuatro puntos de agua superficial identificados y al menos un parámetro comparable de una misma campaña. No hay una fecha comprometida para recibir esos documentos.
+
+- [Fuentes y pedido exacto para el profesor](docs/veladero-fuentes.md).
+- [Guía de prueba y preparación de la publicación](docs/pruebas-v1.4.md).
+- Datos editoriales: `data/veladero.json`; el build valida el conjunto antes de copiarlo a los recursos públicos.
+- Los datos de agua e impactos se actualizan mediante revisión documental y publicación del repositorio. El horario de noticias no extrae ni aprueba análisis ambientales.
+- No se añaden bases de datos, gastos de IA, filtros globales ni nuevas minas al piloto.
+
+**Compatibilidad:** la aplicación declara `1.4.0`; `snapshot.version: "1.3"` y la clave `msj-snapshot-v1.3` siguen siendo el contrato de noticias. No deben cambiarse por una sustitución global de versiones. El piloto nunca modifica los estados operativos.
+
+## Antecedente: publicación de la 1.3
 
 Publicada y comprobada el 7 de septiembre de 2026: primera consulta remota correcta con dos fuentes, diez noticias y ningún cambio automático de estado. Pasaron 59 pruebas. El horario de seis horas quedó registrado en Cloudflare; esa primera consulta se ejecutó administrativamente para iniciar el catálogo. La clave temporal se retiró después.
 
@@ -63,6 +79,9 @@ El código no contrata planes ni usa una API de IA. Su funcionamiento gratuito d
 |---|---|
 | `index.html` | Interfaz, catálogo educativo y mapas |
 | `actualizaciones.js` | Noticias y sincronización de vistas |
+| `agua-impactos.js` | Validación, comparación y ficha documental de Veladero |
+| `agua-impactos.css` | Estilos accesibles del piloto |
+| `data/veladero.json` | Fuentes, impactos y campañas aprobadas; actualmente agua pendiente |
 | `sw.js` | Archivos sin conexión; API siempre por red |
 | `src/worker.js` | API, horario y publicación transaccional |
 | `src/ingestion.js` | Lectura limitada de RSS revisados |
