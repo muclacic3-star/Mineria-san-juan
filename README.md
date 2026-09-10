@@ -4,6 +4,8 @@ Aplicación educativa sobre 14 proyectos mineros de San Juan, preparada para una
 
 **Sitio público estable (1.3):** https://mineria-san-juan.muclacic3.workers.dev/
 
+**Abrir la vista de prueba 1.4 (agua pendiente):** https://v1-4-veladero-mineria-san-juan.muclacic3.workers.dev/
+
 ## Piloto de agua e impactos
 
 En Inicio, **Agua e impactos** abre la sección de Veladero. La ficha distingue antecedentes históricos documentados, declaraciones empresariales y cuestiones no determinadas. Cada fuente muestra su autor, fecha y alcance. La revisión documental no equivale a una nueva medición del agua.
@@ -15,6 +17,8 @@ En Inicio, **Agua e impactos** abre la sección de Veladero. La ficha distingue 
 - Datos editoriales: `data/veladero.json`; el build valida el conjunto antes de copiarlo a los recursos públicos.
 - Los datos de agua e impactos se actualizan mediante revisión documental y publicación del repositorio. El horario de noticias no extrae ni aprueba análisis ambientales.
 - No se añaden bases de datos, gastos de IA, filtros globales ni nuevas minas al piloto.
+
+Comprobado el 10/09/2026: 73 pruebas correctas, construcción validada y revisión de celular/teclado. Los archivos de la vista previa coincidieron por SHA-256 con los archivos construidos. El seguimiento responde correctamente con el contrato 1.3. Los enlaces estables de Pages y Workers siguen en 1.3 hasta completar los datos y la revisión del piloto.
 
 **Compatibilidad:** la aplicación declara `1.4.0`; `snapshot.version: "1.3"` y la clave `msj-snapshot-v1.3` siguen siendo el contrato de noticias. No deben cambiarse por una sustitución global de versiones. El piloto nunca modifica los estados operativos.
 

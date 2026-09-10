@@ -2,6 +2,10 @@
 
 Esta es una vista de prueba de la 1.4. La ficha documental se puede revisar; todavía no se incorporó una campaña final de agua con sus puntos identificados. Los casos ficticios pertenecen solamente a las pruebas del código.
 
+**[Abrir la vista de prueba](https://v1-4-veladero-mineria-san-juan.muclacic3.workers.dev/)**.
+
+Verificación inicial del 10/09/2026: 73 pruebas y construcción correctas; revisión visual a 390 px, selector de tabla en una página local con datos ficticios, retorno del foco con Escape y conservación de la ficha ante nuevas noticias. La actualización de caché y la lectura sin red se verificaron con pruebas simuladas del service worker. Los recursos remotos de la vista previa coincidieron por SHA-256 con la construcción local. La publicación estable completa sigue pendiente.
+
 ## Recorrido para vos y tu profesor
 
 1. En Inicio, abrí **Agua e impactos**, debajo del aviso de noticias. Debe abrirse la ficha de Veladero directamente en el piloto.

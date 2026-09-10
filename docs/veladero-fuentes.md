@@ -36,3 +36,11 @@ Antes de cargar datos reales, conservar el vínculo al informe completo y coteja
 Mantener los calificadores del laboratorio: un resultado bajo el límite de cuantificación o no detectado no equivale a cero. No mezclar fracciones totales y disueltas ni interpretar ausencia de un parámetro como ausencia de contaminación. El piloto muestra mediciones; no certifica potabilidad ni demuestra causalidad.
 
 Hasta completar esa revisión, `water.status` sigue en `pending` y `campaigns` permanece vacío. Los datos ficticios usados en pruebas nunca se incorporan al archivo publicado.
+
+### Estructura para quien incorpore los datos
+
+`agua-impactos.js` valida el contrato `schemaVersion: 1` también durante la construcción. Al aprobar una campaña, `water.status` pasa a `ready` y `campaigns` contiene exactamente una entrada con `verification: "verified"`, `waterType: "surface"`, `reportId`, `laboratory` y `samplingResponsible`. El documento principal debe ser final, tener fecha completa y una nota sobre quién encargó el ensayo o indicar que no se identificó.
+
+Cada punto requiere `id`, `name`, `location` y `evidence` que remita mediante `documentId` y página o sección al documento que identifica su ubicación. Las coordenadas son opcionales; no se inventan. Cada medición registra `pointId`, `parameter`, `sampledAt`, `result` textual, `unit`, `method`, `sourceId` del informe final y `page`. `ld` y `lq` conservan límites analíticos cuando constan; un límite no informado permanece ausente o nulo.
+
+Los parámetros admitidos son `ph`, `conductivity`, `arsenic-total` y `cyanide-total`. Solo se comparan registros con el mismo parámetro, unidad y método, sin conversiones automáticas. Los grupos necesitan dos puntos distintos como mínimo. Las fechas de toma no pueden superar la fecha del informe ni la revisión documental. Se debe revisar la correspondencia técnica completa, además de superar la validación del archivo.
