@@ -1,10 +1,14 @@
-# Minería San Juan · versión 1.3
+# Minería San Juan · versión 1.3.1
 
 Aplicación educativa sobre 14 proyectos mineros de San Juan, preparada para una exposición escolar. Conserva las fichas, mapas y química de minerales de la versión 1.2 y añade noticias en Cloudflare Workers con una base de datos D1.
 
-**Abrir la versión 1.3:** https://mineria-san-juan.muclacic3.workers.dev/
+**Abrir la versión 1.3.1:** https://mineria-san-juan.muclacic3.workers.dev/
 
-Publicada y comprobada el 7 de septiembre de 2026: primera consulta remota correcta con dos fuentes, diez noticias y ningún cambio automático de estado. Pasaron 59 pruebas. El horario de seis horas quedó registrado en Cloudflare; esa primera consulta se ejecutó administrativamente para iniciar el catálogo. La clave temporal se retiró después.
+La vista Mapa se inicia al abrirla. Leaflet se sirve desde el proyecto y el
+[contorno de referencia de San Juan](docs/mapa-fuentes.md) queda disponible con
+los marcadores cuando las imágenes de OpenStreetMap tardan o fallan.
+
+La versión 1.3 se publicó el 7 de septiembre de 2026 con una primera consulta remota correcta de dos fuentes, diez noticias y ningún cambio automático de estado. El horario de seis horas quedó registrado en Cloudflare. La primera consulta se ejecutó administrativamente para iniciar el catálogo y la clave temporal se retiró después.
 
 ## Novedades
 

@@ -36,8 +36,9 @@
   <!-- Tailwind CSS: framework de estilos por clases utilitarias -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Leaflet: librería de mapas interactivos de código abierto -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="mapa-san-juan.js"></script>
   <!-- FontAwesome: iconos adicionales -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -81,6 +82,15 @@
        < panel de detalle (60) < menú lateral (70) < toast (80). */
     main { position: relative; isolation: isolate; z-index: 0; }
     .contenedor-mapa { isolation: isolate; }
+    .contenedor-mapa.leaflet-container { background: #edf2f3; }
+    .aviso-mapa {
+      position: absolute; z-index: 650; top: 10px; left: 56px; right: 12px;
+      width: fit-content; max-width: calc(100% - 68px); margin: 0;
+      border-radius: 7px; padding: 7px 10px; background: #fff;
+      color: #1a3a5c; font-size: 12px; line-height: 1.4;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2); pointer-events: none;
+    }
+    .aviso-mapa[hidden] { display: none; }
 
     /* ===== TRANSICIÓN ENTRE VISTAS (fade de 0.3s) ===== */
     .vista { display: none; opacity: 0; transition: opacity 0.3s ease; }
@@ -270,7 +280,7 @@
       <button onclick="cambiarVista('noticias')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-regular fa-newspaper w-5 text-center" style="color:var(--primario)"></i> Noticias</button>
       <button onclick="cambiarVista('acerca')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center gap-3"><i class="fa-solid fa-circle-info w-5 text-center" style="color:var(--primario)"></i> Acerca de</button>
     </div>
-    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.3 · septiembre 2026</p>
+    <p class="absolute bottom-4 left-0 right-0 text-center text-xs" style="color:var(--texto-sec)">v1.3.1 · noviembre 2026</p>
   </nav>
 
   <!-- Fondo oscuro compartido por drawer y panel de detalle -->
@@ -584,7 +594,7 @@
           </div>
         </div>
 
-        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.3 · septiembre 2026</p>
+        <p class="text-center text-xs font-medium" style="color:var(--texto-sec)">Versión: v1.3.1 · noviembre 2026</p>
         <p class="text-center text-[11px] leading-relaxed px-2 pb-4" style="color:var(--texto-sec)">
           Datos basados en información del <a href="https://sisanjuan.gob.ar/mineria" target="_blank" rel="noopener" class="underline">Ministerio de Minería de San Juan</a>, prensa especializada y reportes corporativos de las empresas mineras (2024-2026). Cada proyecto incluye sus fuentes en la ficha de detalle.
         </p>
@@ -856,8 +866,7 @@
 
     /* ============================================================
        4) NAVEGACIÓN ENTRE VISTAS
-       Cambia de pantalla con un fundido (fade) de 0.3 segundos y
-       actualiza el color de la pestaña activa en la barra inferior.
+       Muestra la nueva vista antes de medir sus mapas y actualiza la barra.
        ============================================================ */
     let vistaActual = null;
 
@@ -868,33 +877,16 @@
 
       if (vistaActual === nombre) return;
 
-      const anterior = document.querySelector('.vista.activa');
-      const mostrar = function () {
-        // Se ocultan todas las demás vistas: así, aunque el usuario toque
-        // dos pestañas muy rápido, nunca quedan dos pantallas superpuestas
-        document.querySelectorAll('.vista').forEach(function (v) {
-          if (v !== nueva) v.classList.remove('activa', 'visible');
-        });
-        nueva.classList.add('activa');
-        // Doble requestAnimationFrame: garantiza que el navegador aplique
-        // primero display:block y recién después la opacidad (para animar)
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () { nueva.classList.add('visible'); });
-        });
-        window.scrollTo(0, 0);
-        // Leaflet necesita recalcular su tamaño cuando el mapa se hace visible
-        if (nombre === 'mapa' && mapaCompleto) setTimeout(function () { mapaCompleto.invalidateSize(); }, 350);
-        if (nombre === 'inicio' && mapaMini) setTimeout(function () { mapaMini.invalidateSize(); }, 350);
-      };
-
-      if (anterior) {
-        anterior.classList.remove('visible');
-        setTimeout(function () { anterior.classList.remove('activa'); mostrar(); }, 300);
-      } else {
-        mostrar();
-      }
-
       vistaActual = nombre;
+      document.querySelectorAll('.vista').forEach(function (vista) {
+        if (vista !== nueva) vista.classList.remove('activa', 'visible');
+      });
+      nueva.classList.add('activa');
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      prepararMapa(nombre);
+      requestAnimationFrame(function () {
+        if (vistaActual === nombre) nueva.classList.add('visible');
+      });
 
       // Actualiza la pestaña activa: azul oscuro la activa, gris las demás.
       // aria-current avisa a los lectores de pantalla cuál está activa.
@@ -1117,28 +1109,64 @@
       cerrarTodo();
       cambiarVista('mapa');
       if (!mapaCompleto || !p) return;
-      setTimeout(function () {
-        mapaCompleto.setView(p.coords, 11);
-        if (marcadores[id]) marcadores[id].openPopup();
-      }, 450);
+      mapaCompleto.setView(p.coords, 11, { animate: false });
+      if (marcadores[id]) marcadores[id].openPopup();
     }
 
     /* ============================================================
        9) MAPAS LEAFLET (miniatura del Inicio + mapa completo)
-       Si la librería no cargó (sin internet), se muestra un mensaje
-       amigable en lugar de los mapas.
+       El mapa se inicializa en su vista visible y conserva el contorno
+       provincial durante la carga de las imágenes.
        ============================================================ */
     let mapaMini = null;
     let mapaCompleto = null;
     const marcadores = {}; // referencia a cada marcador por id de proyecto
     const marcadoresMini = {};
 
-    function crearCapaBase() {
-      // Mapa base de OpenStreetMap (gratuito y de código abierto)
-      return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    function agregarCapaBase(mapa) {
+      // El contorno local se ve por debajo de las imágenes cuando faltan.
+      if (typeof LIMITE_SAN_JUAN !== 'undefined') {
+        mapa.createPane('contornoProvincial').style.zIndex = '190';
+        L.geoJSON(LIMITE_SAN_JUAN, {
+          pane: 'contornoProvincial',
+          interactive: false,
+          style: { color: '#426d77', weight: 2, fillColor: '#c4dbd7', fillOpacity: 0.85 }
+        }).addTo(mapa);
+      }
+
+      const aviso = document.createElement('p');
+      aviso.className = 'aviso-mapa';
+      aviso.setAttribute('role', 'status');
+      aviso.hidden = true;
+      mapa.getContainer().append(aviso);
+
+      function mostrarAviso(mensaje) {
+        if (aviso.textContent !== mensaje) aviso.textContent = mensaje;
+        aviso.hidden = !mensaje;
+      }
+
+      const avisoDeCarga = 'Mapa base incompleto. Los proyectos siguen visibles.';
+      let falloDeCarga = false;
+      let espera;
+      const capa = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 17,
-        attribution: '&copy; OpenStreetMap'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       });
+      capa.on('loading', function () {
+        falloDeCarga = false;
+        clearTimeout(espera);
+        mostrarAviso('Cargando mapa base…');
+        espera = setTimeout(function () { mostrarAviso(avisoDeCarga); }, 4000);
+      });
+      capa.on('tileerror', function () {
+        falloDeCarga = true;
+        mostrarAviso(avisoDeCarga);
+      });
+      capa.on('load', function () {
+        clearTimeout(espera);
+        mostrarAviso(falloDeCarga ? avisoDeCarga : '');
+      });
+      capa.addTo(mapa);
     }
 
     function marcadorProyecto(p, radio) {
@@ -1152,34 +1180,31 @@
       });
     }
 
-    function iniciarMapas() {
-      // Si Leaflet no está disponible (sin conexión), mostramos el aviso
-      if (typeof L === 'undefined') {
-        document.querySelectorAll('.contenedor-mapa').forEach(function (c) {
-          c.innerHTML =
-            '<div class="aviso-offline">' +
-              '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><line x1="4" y1="4" x2="20" y2="20"/></svg>' +
-              '<p class="font-semibold">Mapa no disponible sin conexión.</p>' +
-              '<p>Los datos de proyectos siguen siendo consultables.</p>' +
-            '</div>';
-        });
+    function prepararMapa(vista) {
+      if (vista !== 'inicio' && vista !== 'mapa') return;
+      if (!document.getElementById('vista-' + vista).classList.contains('activa')) return;
+      const mini = vista === 'inicio';
+      const existente = mini ? mapaMini : mapaCompleto;
+      if (existente) {
+        existente.invalidateSize({ pan: false });
         return;
       }
 
-      // --- Mapa miniatura del Inicio (centrado en San Juan) ---
-      mapaMini = L.map('mapa-mini', { zoomControl: false, attributionControl: false }).setView([-30.5, -69.0], 6);
-      crearCapaBase().addTo(mapaMini);
-      PROYECTOS.forEach(function (p) {
-        marcadoresMini[p.id] = marcadorProyecto(p, 6).addTo(mapaMini).bindPopup(popupProyectoHTML(p, true));
-      });
+      const id = mini ? 'mapa-mini' : 'mapa-full';
+      if (typeof L === 'undefined') {
+        document.getElementById(id).innerHTML =
+          '<div class="aviso-offline"><p class="font-semibold">No se pudo iniciar el mapa.</p>' +
+          '<button type="button" onclick="cambiarVista(\'proyectos\')">Ver la lista de proyectos</button></div>';
+        return;
+      }
 
-      // --- Mapa completo de la vista Mapa ---
-      mapaCompleto = L.map('mapa-full').setView([-30.5, -69.0], 7);
-      crearCapaBase().addTo(mapaCompleto);
+      const mapa = L.map(id, { zoomControl: !mini }).setView([-30.5, -69.0], mini ? 6 : 7);
+      if (mini) mapaMini = mapa; else mapaCompleto = mapa;
+      agregarCapaBase(mapa);
+      const marcadoresDeVista = mini ? marcadoresMini : marcadores;
       PROYECTOS.forEach(function (p) {
-        const m = marcadorProyecto(p, 9).addTo(mapaCompleto);
-        m.bindPopup(popupProyectoHTML(p, false));
-        marcadores[p.id] = m;
+        marcadoresDeVista[p.id] = marcadorProyecto(p, mini ? 6 : 9)
+          .addTo(mapa).bindPopup(popupProyectoHTML(p, mini));
       });
     }
 
@@ -1226,7 +1251,6 @@
 
       renderFiltros();
       renderLista();
-      iniciarMapas();
       cambiarVista('inicio');
     })();
   </script>
