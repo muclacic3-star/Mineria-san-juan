@@ -6,11 +6,11 @@
       principales quedan disponibles offline).
    Estrategia:
    - Archivos propios: primero la copia guardada (rápido).
-   - Librerías externas, imágenes y teselas del mapa: se muestran
-     al instante desde la copia y se actualizan en segundo plano.
+   - Otros recursos externos: se muestran desde la copia y se actualizan
+     en segundo plano. Las imágenes del mapa usan la caché HTTP del navegador.
    ============================================================ */
 
-const VERSION = 'v1.4-sep2026-veladero-2';
+const VERSION = 'v1.4-nov2026-veladero-mapa-1';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
@@ -24,6 +24,9 @@ const APP_SHELL = [
   './agua-impactos.js',
   './agua-impactos.css',
   './data/veladero.json',
+  './mapa-san-juan.js',
+  './vendor/leaflet/leaflet.css',
+  './vendor/leaflet/leaflet.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -68,6 +71,8 @@ self.addEventListener('fetch', function (evento) {
   const apiPath = new URL('./api/', self.registration.scope).pathname;
   if (url.origin === self.location.origin && url.pathname.startsWith(apiPath)) return;
   if (url.origin === 'https://mineria-san-juan.muclacic3.workers.dev' && url.pathname.startsWith('/api/')) return;
+  // Respetar la caché HTTP de OSM y evitar guardar respuestas opacas de error.
+  if (url.origin === 'https://tile.openstreetmap.org') return;
 
   // Navegación (abrir la app): SIEMPRE se intenta internet primero
   // (network-first), así cada visita con conexión trae la última
@@ -105,8 +110,7 @@ self.addEventListener('fetch', function (evento) {
     return;
   }
 
-  // Recursos externos (Tailwind, Leaflet, FontAwesome, imágenes,
-  // teselas de OpenStreetMap): mostrar la copia al instante y
+  // Recursos externos (Tailwind, FontAwesome e imágenes): mostrar la copia al instante y
   // actualizarla en segundo plano para la próxima apertura.
   evento.respondWith(
     caches.open(CACHE_EXT).then(function (cache) {

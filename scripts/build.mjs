@@ -25,7 +25,7 @@ await writeFile(path.join(root, 'src/projects-seed.json'), JSON.stringify(projec
   baselineReferenceAt: '2026-07-31T23:59:59.000Z'
 })), null, 2) + '\n');
 await mkdir(path.join(root, 'public'), { recursive: true });
-for (const file of ['index.html', 'actualizaciones.js', 'agua-impactos.js', 'agua-impactos.css', 'data', 'sw.js', 'manifest.webmanifest', 'icons']) {
+for (const file of ['index.html', 'actualizaciones.js', 'agua-impactos.js', 'agua-impactos.css', 'data', 'mapa-san-juan.js', 'vendor', 'sw.js', 'manifest.webmanifest', 'icons']) {
   await cp(path.join(root, file), path.join(root, 'public', file), { recursive: true });
 }
 console.log('Aplicación 1.4 preparada: 14 proyectos, noticias y piloto documental de Veladero.');

@@ -2,7 +2,7 @@
 
 Aplicación educativa sobre 14 proyectos mineros de San Juan, preparada para una exposición escolar. La 1.4 incorpora una ficha de agua e impactos documentados de Veladero. Conserva mapas, química de minerales y noticias de la 1.3 en Cloudflare Workers con D1.
 
-**Sitio público estable (1.3):** https://mineria-san-juan.muclacic3.workers.dev/
+**Sitio público estable (1.3.1):** https://muclacic3-star.github.io/Mineria-san-juan/
 
 **Abrir la vista de prueba 1.4 (agua pendiente):** https://v1-4-veladero-mineria-san-juan.muclacic3.workers.dev/
 
@@ -18,13 +18,19 @@ En Inicio, **Agua e impactos** abre la sección de Veladero. La ficha distingue 
 - Los datos de agua e impactos se actualizan mediante revisión documental y publicación del repositorio. El horario de noticias no extrae ni aprueba análisis ambientales.
 - No se añaden bases de datos, gastos de IA, filtros globales ni nuevas minas al piloto.
 
-Comprobado el 10/09/2026: 73 pruebas correctas, construcción validada y revisión de celular/teclado. Los archivos de la vista previa coincidieron por SHA-256 con los archivos construidos. El seguimiento responde correctamente con el contrato 1.3. Los enlaces estables de Pages y Workers siguen en 1.3 hasta completar los datos y la revisión del piloto.
+Comprobado el 10/09/2026: 73 pruebas correctas, construcción validada y revisión de celular/teclado. Los archivos de la vista previa coincidieron por SHA-256 con los archivos construidos. El seguimiento responde correctamente con el contrato 1.3. La versión 1.4 sigue en preparación hasta completar los datos y la revisión del piloto; la corrección de mapas de la estable 1.3.1 también se integra en esta rama.
+
+Integración local del 12/11/2026: 77 pruebas correctas y construcción validada con la corrección de mapas, Leaflet local y el contorno de respaldo. Esta comprobación no actualiza la vista previa publicada ni da por completados los datos de agua pendientes.
 
 **Compatibilidad:** la aplicación declara `1.4.0`; `snapshot.version: "1.3"` y la clave `msj-snapshot-v1.3` siguen siendo el contrato de noticias. No deben cambiarse por una sustitución global de versiones. El piloto nunca modifica los estados operativos.
 
+La vista Mapa se inicia al abrirla. Leaflet se sirve desde el proyecto y el
+[contorno de referencia de San Juan](docs/mapa-fuentes.md) queda disponible con
+los marcadores cuando las imágenes de OpenStreetMap tardan o fallan.
+
 ## Antecedente: publicación de la 1.3
 
-Publicada y comprobada el 7 de septiembre de 2026: primera consulta remota correcta con dos fuentes, diez noticias y ningún cambio automático de estado. Pasaron 59 pruebas. El horario de seis horas quedó registrado en Cloudflare; esa primera consulta se ejecutó administrativamente para iniciar el catálogo. La clave temporal se retiró después.
+La versión 1.3 se publicó el 7 de septiembre de 2026 con una primera consulta remota correcta de dos fuentes, diez noticias y ningún cambio automático de estado. El horario de seis horas quedó registrado en Cloudflare. La primera consulta se ejecutó administrativamente para iniciar el catálogo y la clave temporal se retiró después.
 
 ## Novedades
 
