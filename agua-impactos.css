@@ -1,0 +1,61 @@
+/* El piloto conserva su presentación aunque los estilos externos no estén disponibles. */
+.ai-entry {
+  width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 18px; text-align: left; border: 1px solid #bbd8d9;
+  border-radius: 12px; background: #edf7f5; color: #183d45; cursor: pointer;
+}
+.ai-entry-icon { display: grid; place-items: center; flex: 0 0 44px; height: 44px; background: #d6eeea; border-radius: 12px; color: #22655f; }
+.ai-entry-title { display: block; font-size: 18px; font-weight: 750; margin: 3px 0; }
+.ai-entry-description { display: block; font-size: 13px; line-height: 1.5; }
+.ai-entry-arrow { margin-left: auto; font-size: 23px; }
+.ai-eyebrow { display: block; color: #285f61; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.ai-mount { margin-top: 24px; scroll-margin-top: 12px; }
+.ai-panel { color: #263d4c; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.ai-panel h3 { color: #173e48; font-size: 22px; line-height: 1.3; font-weight: 750; margin: 4px 0 8px; }
+.ai-panel h4 { color: #173e48; font-size: 17px; line-height: 1.4; font-weight: 700; margin: 0 0 12px; }
+.ai-panel p { margin: 8px 0; }
+.ai-panel a { color: #175b6b; text-decoration: underline; text-underline-offset: 3px; }
+.ai-panel a:hover { text-decoration-thickness: 2px; }
+.ai-header { padding: 20px; border-radius: 12px 12px 0 0; border: 1px solid #cfdfdf; background: #edf7f5; }
+.ai-meta { color: #506570; font-size: 12px; line-height: 1.6; }
+span.ai-meta { display: block; margin-top: 3px; }
+.ai-water { padding: 20px; border: 1px solid #cfdfdf; border-top: 0; border-radius: 0 0 12px 12px; }
+.ai-notice { background: #faf5e9; color: #604617; border-left: 3px solid #b68b38; padding: 12px 14px; border-radius: 3px 8px 8px 3px; }
+.ai-checklist { margin: 12px 0; padding-left: 20px; list-style: disc; }
+.ai-checklist li { margin: 7px 0; }
+.ai-documents { margin: 16px 0 0; padding: 0; list-style: none; }
+.ai-document { padding: 12px 0; border-top: 1px solid #e0e7e9; }
+.ai-document:first-child { border-top: 0; }
+.ai-document p { margin: 4px 0; }
+.ai-panel details { margin: 14px 0; }
+.ai-panel summary { font-weight: 650; cursor: pointer; color: #175b6b; padding: 6px 0; }
+.ai-field { margin: 16px 0; }
+.ai-field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.ai-field select, select.ai-field { width: 100%; min-height: 44px; border: 1px solid #829ba4; border-radius: 7px; background: white; padding: 8px 10px; color: #263d4c; font: inherit; }
+.ai-table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid #dce5e8; border-radius: 8px; }
+.ai-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.ai-table caption { text-align: left; padding: 12px; color: #435a64; font-size: 12px; }
+.ai-table th, .ai-table td { padding: 10px 12px; border-top: 1px solid #dce5e8; vertical-align: top; min-width: 95px; }
+.ai-table thead { background: #eff5f6; }
+.ai-table th { font-weight: 700; }
+.ai-table tbody tr:nth-child(even) { background: #f8fafb; }
+.ai-limits { font-size: 12px; color: #506570; padding: 10px 0 0; }
+.ai-impacts { margin-top: 28px; }
+.ai-impact { border-top: 1px solid #dce5e8; padding: 20px 0 0; margin-top: 20px; }
+.ai-claim { margin: 16px 0; }
+.ai-badge { display: inline-block; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 700; letter-spacing: .02em; background: #edf1f4; color: #405463; }
+.ai-badge-documented { background: #e5eff4; color: #24536c; }
+.ai-badge-declared { background: #f2edfa; color: #654588; }
+.ai-badge-undetermined { background: #f6efdf; color: #775519; }
+.ai-evidence { margin: 7px 0 0; padding: 0; list-style: none; font-size: 12px; }
+.ai-evidence li { margin: 5px 0; }
+.ai-error { padding: 18px; background: #faf5e9; border: 1px solid #e4d6b4; border-radius: 10px; }
+.ai-retry { margin-top: 10px; min-height: 44px; padding: 8px 15px; border-radius: 7px; color: #fff; background: #1a3a5c; font-weight: 650; cursor: pointer; }
+.ai-panel :focus-visible, .ai-entry:focus-visible, .ai-mount:focus-visible { outline: 3px solid #216d83; outline-offset: 3px; }
+@media (max-width: 420px) {
+  .ai-entry { gap: 10px; padding: 14px; }
+  .ai-entry-icon { flex-basis: 36px; height: 40px; }
+  .ai-entry-description { font-size: 12px; }
+  .ai-header, .ai-water { padding: 16px; }
+  .ai-panel { font-size: 13px; }
+}

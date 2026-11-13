@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "projectId": 1,
+  "reviewedAt": "2026-09-10",
+  "documents": [
+    {
+      "id": "sgs-ma25-01373",
+      "title": "SGS: informe de ensayo MA25-01373",
+      "publisher": "SGS Argentina S.A.; publicado por Veladero",
+      "sourceType": "laboratory",
+      "publishedAt": "2025-11-28",
+      "url": "https://veladero.com/public/pdf/noticias/1764370430_b48ea2ba1f36acc4109a.pdf",
+      "status": "preliminary",
+      "note": "Solicitado por Barrick Exploraciones Argentina S.A. SGS indica que el cliente proporcionó las muestras. Los cinco folios no incluyen un plano de estaciones. La fecha corresponde a la emisión; las tomas fueron el 27/11/2025."
+    },
+    {
+      "id": "veladero-monitoreo-2025",
+      "title": "Comunicación de Veladero sobre el monitoreo de noviembre de 2025",
+      "publisher": "Veladero",
+      "sourceType": "company",
+      "publishedAt": "2025-11-28",
+      "url": "https://veladero.com/comunicaciones/noticia/nuevo-monitoreo-participativo-veladero-refuerza-con-hechos-su-compromiso-con-la-transparencia-y-la-calidad-del-agua",
+      "status": "reference",
+      "note": "La empresa informa participación de vecinos y técnicos del Instituto de Investigaciones Hidráulicas de la UNSJ. Adjunta resultados preliminares; sus conclusiones ambientales son declaraciones de la operadora."
+    },
+    {
+      "id": "agn-168-2017",
+      "title": "AGN: auditoría ambiental de San Guillermo, Resolución 168/2017",
+      "publisher": "Auditoría General de la Nación",
+      "sourceType": "government",
+      "publishedAt": "2017",
+      "url": "https://www.agn.gov.ar/sites/default/files/informes/informe_168_2017.pdf",
+      "status": "final",
+      "note": "Antecedente histórico. El anexo X.2 describe el derrame de 2015 y actuaciones posteriores del Ministerio de Ambiente; no certifica la situación ambiental actual."
+    },
+    {
+      "id": "gobierno-derrame-2016",
+      "title": "Comunicación del Gobierno nacional sobre el informe ambiental remitido a la Justicia",
+      "publisher": "Presidencia de la Nación, Casa Rosada",
+      "sourceType": "government",
+      "publishedAt": "2016-03-03",
+      "url": "https://www.casarosada.gob.ar/informacion/eventos-destacados-presi/35675-el-gobierno-aporta-un-informe-a-la-justicia-por-derrame-de-cianuro-en-una-mina-de-san-juan",
+      "status": "reference",
+      "note": "Comunicación oficial que resume actuaciones y un peritaje de la Policía Federal. No es el peritaje completo ni una sentencia."
+    },
+    {
+      "id": "veladero-balance-2024",
+      "title": "Veladero: balance comunitario de 2024",
+      "publisher": "Veladero",
+      "sourceType": "company",
+      "publishedAt": "2024-12-27",
+      "url": "https://veladero.com/public/pdf/noticias/1735325743_3078d0a2f13a0ba6c20c.pdf",
+      "status": "reference",
+      "note": "Comunicado empresarial de dos páginas. Cifras declaradas por la operadora, sin auditoría independiente incorporada a este piloto."
+    }
+  ],
+  "water": {
+    "status": "pending",
+    "summary": "Todavía no hay una campaña final con puntos identificados incorporada al piloto. El documento disponible es preliminar: no publicamos sus cifras como una comparación verificada.",
+    "missingDocuments": [
+      "Informe final completo que sustituya al ensayo SGS MA25-01373, referencia PL-4795.",
+      "Acta, cadena de custodia y mapa o listado que ubique LARGA-17592, LARGA-17590, LARGA-17588 y LARGA-17591.",
+      "Métodos, unidades y límites de detección y cuantificación de cada resultado, con fecha, tipo de agua y responsables del muestreo.",
+      "Como alternativa, otra campaña final de agua superficial de Veladero con al menos dos puntos identificados y un parámetro comparable."
+    ],
+    "campaigns": []
+  },
+  "impacts": [
+    {
+      "id": "water",
+      "title": "Agua y ambiente",
+      "items": [
+        {
+          "id": "monitoreo-preliminar",
+          "claim": "El ensayo SGS disponible reúne cuatro muestras de agua superficial tomadas el 27 de noviembre de 2025. Está marcado como preliminar y no ubica geográficamente los códigos de muestra; por eso aún no permite construir el comparador verificado.",
+          "status": "documented",
+          "period": "Muestreo: 27/11/2025; informe: 28/11/2025",
+          "evidence": [
+            { "documentId": "sgs-ma25-01373", "page": 1, "section": "Identificación, procedencia y finalización del ensayo; códigos en páginas 2 a 5" }
+          ]
+        },
+        {
+          "id": "peritaje-historico",
+          "claim": "El Gobierno nacional informó en marzo de 2016 que un peritaje de la Policía Federal había determinado contaminación en los ríos Potrerillos, Jáchal, Blanco, Palca y Las Taguas tras el derrame de 2015. Es un antecedente histórico; no describe las condiciones actuales del agua.",
+          "status": "documented",
+          "period": "Derrame de septiembre de 2015; comunicación: 03/03/2016",
+          "evidence": [
+            { "documentId": "gobierno-derrame-2016", "section": "Párrafo sobre el peritaje de la Policía Federal Argentina" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "incidents",
+      "title": "Incidentes y medidas documentadas",
+      "items": [
+        {
+          "id": "derrame-2015",
+          "claim": "La AGN registró el derrame del 13 de septiembre de 2015. Según el reporte de MAGSA recogido por la auditoría, una falla de válvula provocó una fuga de solución del sistema de lixiviación que alcanzó el río Potrerillos.",
+          "status": "documented",
+          "period": "13/09/2015",
+          "evidence": [
+            { "documentId": "agn-168-2017", "section": "Anexo X.2, página impresa 96: incidente del 13 de septiembre de 2015" }
+          ]
+        },
+        {
+          "id": "inspeccion-valvula-2015",
+          "claim": "La misma auditoría relata que funcionarios nacionales visitaron el sitio el 30 de septiembre de 2015 y observaron la válvula reemplazada y una nueva cobertura. Esa intervención no demuestra por sí sola que se haya reparado todo el daño ambiental.",
+          "status": "documented",
+          "period": "30/09/2015",
+          "evidence": [
+            { "documentId": "agn-168-2017", "section": "Anexo X.2, página impresa 96: visita al sitio del incidente" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "economy",
+      "title": "Empleo y aportes económicos",
+      "items": [
+        {
+          "id": "empleo-declarado-2024",
+          "claim": "En su comunicado de diciembre de 2024, Veladero declaró 3.822 trabajadores entre personal directo y contratistas, con un 90 % de la provincia de San Juan. Son cifras empresariales de ese momento; no un recuento de empleo actual.",
+          "status": "declared",
+          "period": "Comunicado: 27/12/2024",
+          "evidence": [
+            { "documentId": "veladero-balance-2024", "page": 2, "section": "Sobre Veladero" }
+          ]
+        },
+        {
+          "id": "fondos-comunitarios-2024",
+          "claim": "Veladero informó aproximadamente USD 800.000 destinados en 2024 a ocho Comités de Desarrollo Comunitario de Iglesia y Jáchal, con presupuesto propio y aportes de contratistas. El monto declarado no demuestra por sí solo el resultado de cada obra.",
+          "status": "declared",
+          "period": "2024; comunicado: 27/12/2024",
+          "evidence": [
+            { "documentId": "veladero-balance-2024", "page": 1, "section": "Fondos destinados a los Comités de Desarrollo Comunitario" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unknowns",
+      "title": "Información pendiente",
+      "items": [
+        {
+          "id": "campana-final-pendiente",
+          "claim": "Falta incorporar el informe final y la identificación de las estaciones. Con lo reunido no podemos comparar zonas, determinar potabilidad ni atribuir diferencias a la mina. Esta falta de datos no prueba seguridad ni contaminación actuales.",
+          "status": "undetermined",
+          "period": "Revisión del piloto: 10/09/2026",
+          "evidence": [
+            { "documentId": "sgs-ma25-01373", "page": 1, "section": "Alcance del documento preliminar" }
+          ]
+        },
+        {
+          "id": "balance-incompleto",
+          "claim": "Esta primera ficha no reúne una evaluación actual de remediación ni una verificación independiente de los aportes económicos citados. Tampoco es un inventario completo de incidentes, sanciones o impactos de Veladero.",
+          "status": "undetermined",
+          "period": "Cobertura documental del piloto al 10/09/2026",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

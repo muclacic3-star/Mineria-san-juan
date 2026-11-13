@@ -10,7 +10,7 @@
      en segundo plano. Las imágenes del mapa usan la caché HTTP del navegador.
    ============================================================ */
 
-const VERSION = 'v1.3.1-mapa';
+const VERSION = 'v1.4-nov2026-veladero-mapa-1';
 const CACHE_APP = 'msj-app-' + VERSION;      // archivos propios
 const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 
@@ -21,6 +21,9 @@ const CACHE_EXT = 'msj-ext-' + VERSION;      // librerías, imágenes, mapa
 const APP_SHELL = [
   './index.html',
   './actualizaciones.js',
+  './agua-impactos.js',
+  './agua-impactos.css',
+  './data/veladero.json',
   './mapa-san-juan.js',
   './vendor/leaflet/leaflet.css',
   './vendor/leaflet/leaflet.js',

@@ -1,7 +1,7 @@
 {
   "name": "Minería San Juan — Estado de Proyectos",
   "short_name": "Minería SJ",
-  "description": "Estado actualizado de los proyectos mineros de la provincia de San Juan, Argentina: mapa interactivo, fichas de química de minerales y noticias. Proyecto educativo 2026.",
+  "description": "Minería San Juan 1.4: mapas, minerales, noticias y un piloto de agua e impactos documentados de Veladero. Proyecto educativo 2026.",
   "id": "./index.html",
   "start_url": "./index.html",
   "scope": "./",
